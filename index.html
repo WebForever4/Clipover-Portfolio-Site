@@ -201,7 +201,7 @@
       <div class="offers">
         <div class="offer">
           <h3>People Playground mods</h3>
-          <p>Custom items, characters, machines and gameplay changes. Tell me what it should do, send reference images, and say which game version you play.</p>
+          <p>Custom items, characters, machines and gameplay changes. Tell me what it should do, send reference images, and say which game version you play. <a href="https://discord.gg/bNM8W8aAhD" target="_blank" rel="noopener">Order in the Discord server.</a></p>
         </div>
         <div class="offer">
           <h3>Tampermonkey scripts</h3>
@@ -224,7 +224,7 @@
         </label>
         <div class="row">
           <button class="btn" type="submit" id="issueBtn">Send order on GitHub</button>
-          <a class="btn second" href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener">Order on Discord</a>
+          <a class="btn second" id="discordOrder" href="https://discord.gg/bNM8W8aAhD" target="_blank" rel="noopener">Order on Discord</a>
         </div>
         <p class="note">GitHub orders open a public issue on this repository, so leave private details out. Use Discord for those.</p>
       </form>
@@ -518,6 +518,10 @@ $("#orderForm").addEventListener("submit", e => {
   const body = `**Type:** ${type}\n**Contact:** ${contact || "(not given)"}\n\n${details}`;
   const url = `https://github.com/${o}/${r}/issues/new?labels=order&title=${encodeURIComponent("Order: " + type)}&body=${encodeURIComponent(body)}`;
   window.open(url, "_blank", "noopener");
+});
+
+$("#orderType").addEventListener("change", e => {
+  $("#discordOrder").href = e.target.value === "People Playground mod" ? "https://discord.gg/bNM8W8aAhD" : "https://discord.gg/AFuksKe5aW";
 });
 
 /* ---------- start ---------- */
