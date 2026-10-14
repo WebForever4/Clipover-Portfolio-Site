@@ -425,7 +425,7 @@ $("#chips").addEventListener("click", e => { const b = e.target.closest("[data-c
 
 /* ---------- GitHub API ---------- */
 async function gh(path, opts = {}, auth = S){
-  const r = await fetch("https://api.github.com" + path, { ...opts, headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + auth.token, "Content-Type": "application/json", ...(opts.headers || {}) } });
+  const r = await fetch("https://api.github.com" + path, { ...opts, cache: "no-store", headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + auth.token, "Content-Type": "application/json", ...(opts.headers || {}) } });
   if (!r.ok) { let m = "GitHub error " + r.status; try { m = (await r.json()).message || m; } catch {} const e = new Error(m); e.status = r.status; throw e; }
   return r.status === 204 ? null : r.json();
 }
@@ -436,16 +436,34 @@ const safeName = n => n.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-
 const cp = p => "/repos/" + S.owner + "/" + S.repo + "/contents/" + p;
 
 async function putFile(path, b64, message){
-  let sha; try { sha = (await gh(cp(path) + "?ref=" + S.branch)).sha; } catch (e) { if (e.status !== 404) throw e; }
+  let sha; try { sha = (await gh(cp(path) + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now())).sha; } catch (e) { if (e.status !== 404) throw e; }
   return gh(cp(path), { method: "PUT", body: JSON.stringify({ message, content: b64, branch: S.branch, ...(sha ? { sha } : {}) }) });
 }
 async function readWorksJson(){
-  try { const f = await gh(cp("works.json") + "?ref=" + S.branch); return { data: JSON.parse(textFromB64(f.content)), sha: f.sha }; }
-  catch (e) { if (e.status === 404) return { data: { works: [] }, sha: null }; throw e; }
+  try {
+    const f = await gh(cp("works.json") + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now());
+    return { data: JSON.parse(textFromB64(f.content)), sha: f.sha };
+  } catch (e) { if (e.status === 404) return { data: { works: [] }, sha: null }; throw e; }
 }
-async function saveWorksJson(data, sha, message){
-  return gh(cp("works.json"), { method: "PUT", body: JSON.stringify({ message, content: b64FromText(JSON.stringify(data, null, 2) + "\n"), branch: S.branch, ...(sha ? { sha } : {}) }) });
+/* Reads the live works.json, applies your change to what is there right now, and retries if GitHub
+   says the file moved. Works already posted are always kept: a stale copy never overwrites them. */
+async function updateWorks(mutate, message){
+  let lastErr;
+  for (let i = 0; i < 4; i++) {
+    const { data, sha } = await readWorksJson();
+    const next = mutate(Array.isArray(data.works) ? data.works : []);
+    try {
+      await gh(cp("works.json"), { method: "PUT", body: JSON.stringify({ message, content: b64FromText(JSON.stringify({ ...data, works: next }, null, 2) + "\n"), branch: S.branch, ...(sha ? { sha } : {}) }) });
+      return next;
+    } catch (e) {
+      lastErr = e;
+      if (e.status !== 409 && e.status !== 422) throw e;
+      await new Promise(r => setTimeout(r, 1200 * (i + 1)));
+    }
+  }
+  throw lastErr;
 }
+const byNewest = list => list.slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
 /* ---------- sign in ---------- */
 const dlg = $("#signInDialog");
@@ -494,10 +512,8 @@ $("#uploadForm").addEventListener("submit", async e => {
     const entry = { id, title: f.title.value.trim(), desc: f.desc.value.trim(), category: f.category.value, link: safeUrl(f.link.value.trim()), date: new Date().toISOString() };
     if (img) { const p = `works/${id}-${safeName(img.name)}`; await putFile(p, await b64FromFile(img), "Add preview for " + entry.title); entry.image = p; }
     if (file) { const p = `works/${id}-${safeName(file.name)}`; await putFile(p, await b64FromFile(file), "Add file for " + entry.title); entry.file = p; }
-    const { data, sha } = await readWorksJson();
-    data.works = [entry, ...(data.works || [])];
-    await saveWorksJson(data, sha, "Add work: " + entry.title);
-    works = [entry, ...works]; renderWorks();
+    const saved = await updateWorks(list => [entry, ...list.filter(x => x.id !== entry.id)], "Add work: " + entry.title);
+    works = byNewest(saved); renderWorks();
     f.reset(); msg.textContent = "Published. The live site updates in a minute or two.";
     toast("Work published");
   } catch (ex) { msg.style.color = "#b3123f"; msg.textContent = ex.message; }
@@ -511,13 +527,11 @@ $("#grid").addEventListener("click", async e => {
   if (!confirm('Delete "' + w.title + '"? This removes it and its uploaded files from the repository.')) return;
   b.disabled = true;
   try {
-    const { data, sha } = await readWorksJson();
-    data.works = (data.works || []).filter(x => x.id !== w.id);
-    await saveWorksJson(data, sha, "Remove work: " + w.title);
+    const saved = await updateWorks(list => list.filter(x => x.id !== w.id), "Remove work: " + w.title);
     for (const p of [w.image, w.file].filter(Boolean)) {
-      try { const cur = await gh(cp(p) + "?ref=" + S.branch); await gh(cp(p), { method: "DELETE", body: JSON.stringify({ message: "Remove " + p, sha: cur.sha, branch: S.branch }) }); } catch {}
+      try { const cur = await gh(cp(p) + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now()); await gh(cp(p), { method: "DELETE", body: JSON.stringify({ message: "Remove " + p, sha: cur.sha, branch: S.branch }) }); } catch {}
     }
-    works = works.filter(x => x.id !== w.id); renderWorks(); toast("Deleted");
+    works = byNewest(saved); renderWorks(); toast("Deleted");
   } catch (ex) { toast(ex.message); b.disabled = false; }
 });
 
