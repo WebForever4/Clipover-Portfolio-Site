@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clipover – mods, scripts and games</title>
+<meta name="description" content="Work by Clipover: People Playground mods, Tampermonkey scripts and game projects. Orders open.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#d4dde8;
+    --panel:#f3f6fa;
+    --ink:#1d2a3b;
+    --muted:#4d5d72;
+    --line:#9fb0c5;
+    --pink:#e5338c;
+    --yellow:#ffcb3d;
+    --blue:#2f6fed;
+    --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+    --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.55;
+    background-color:var(--bg);
+    background-image:
+      linear-gradient(rgba(29,42,59,.07) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(29,42,59,.07) 1px,transparent 1px);
+    background-size:32px 32px;
+  }
+  a{color:inherit}
+  :focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+
+  /* nav */
+  header.nav{position:sticky;top:0;z-index:20;background:rgba(212,221,232,.92);backdrop-filter:blur(6px);border-bottom:2px solid var(--ink)}
+  .nav .wrap{display:flex;align-items:center;gap:18px;padding-top:10px;padding-bottom:10px;flex-wrap:wrap}
+  .brand{font-family:var(--display);font-weight:800;font-size:22px;text-decoration:none;margin-right:auto}
+  .nav a.link{text-decoration:none;font-weight:600;padding:4px 2px;border-bottom:3px solid transparent}
+  .nav a.link:hover{border-bottom-color:var(--pink)}
+  .btn{
+    font:600 16px var(--body);color:var(--ink);background:var(--yellow);
+    border:2px solid var(--ink);border-radius:8px;padding:9px 16px;cursor:pointer;text-decoration:none;
+    box-shadow:3px 3px 0 var(--ink);display:inline-block;transition:transform .08s,box-shadow .08s;
+  }
+  .btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .btn.pink{background:var(--pink);color:#fff}
+  .btn.plain{background:var(--panel)}
+  .btn.small{padding:5px 11px;font-size:14px;box-shadow:2px 2px 0 var(--ink)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* hero */
+  .hero{padding:40px 0 10px}
+  .hero p.lead{max-width:34em;font-size:20px;margin:0 0 8px}
+  .stage{position:relative;height:clamp(240px,38vw,360px);margin-top:10px;border:2px solid var(--ink);border-radius:10px;background:var(--panel);overflow:hidden;touch-action:none}
+  .stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:14px;background:var(--ink)}
+  .tile{
+    position:absolute;left:0;top:0;display:flex;align-items:center;justify-content:center;
+    font-family:var(--display);font-weight:800;line-height:1;user-select:none;cursor:grab;
+    border:2px solid var(--ink);border-radius:8px;box-shadow:3px 3px 0 var(--ink);touch-action:none;
+  }
+  .tile.drag{cursor:grabbing}
+  .stage-hint{position:absolute;right:12px;top:10px;font-size:14px;color:var(--muted);pointer-events:none}
+
+  /* sections */
+  section{padding:56px 0 8px}
+  h2{font-family:var(--display);font-weight:800;font-size:clamp(30px,5vw,44px);line-height:1.05;margin:0 0 8px}
+  .sub{margin:0 0 24px;color:var(--muted);max-width:40em}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+  .chip{font:600 14px var(--body);border:2px solid var(--ink);background:var(--panel);border-radius:999px;padding:5px 13px;cursor:pointer}
+  .chip[aria-pressed="true"]{background:var(--ink);color:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px}
+  .card{background:var(--panel);border:2px solid var(--ink);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;box-shadow:4px 4px 0 var(--ink)}
+  .card .thumb{aspect-ratio:16/10;background:var(--line);display:flex;align-items:center;justify-content:center;font:800 54px var(--display);border-bottom:2px solid var(--ink)}
+  .card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .card h3{margin:0;font:800 21px/1.15 var(--display)}
+  .card p{margin:0;color:var(--muted);font-size:15px}
+  .tag{align-self:flex-start;font-size:13px;font-weight:600;background:var(--yellow);border:2px solid var(--ink);border-radius:6px;padding:1px 8px}
+  .card .actions{margin-top:auto;padding-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+  .empty{border:2px dashed var(--ink);border-radius:10px;padding:28px;background:rgba(243,246,250,.7)}
+  .empty strong{font-family:var(--display);font-size:20px}
+
+  /* orders */
+  .orders{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .offer{background:var(--panel);border:2px solid var(--ink);border-radius:10px;padding:18px;box-shadow:4px 4px 0 var(--ink)}
+  .offer h3{margin:0 0 6px;font:800 22px var(--display)}
+  .offer ul{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:15px}
+  form.panel{margin-top:24px;background:var(--panel);border:2px solid var(--ink);border-radius:10px;padding:20px;display:grid;gap:14px;max-width:680px}
+  label{display:grid;gap:5px;font-weight:600;font-size:15px}
+  input,select,textarea{font:400 16px var(--body);color:var(--ink);background:#fff;border:2px solid var(--ink);border-radius:8px;padding:9px 11px;width:100%}
+  textarea{min-height:110px;resize:vertical}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .note{font-size:14px;color:var(--muted);margin:0}
+
+  /* community */
+  .discords{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .discord{display:block;text-decoration:none;background:var(--ink);color:#fff;border-radius:10px;padding:22px;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--pink);transition:transform .08s,box-shadow .08s}
+  .discord:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--pink)}
+  .discord b{display:block;font:800 26px var(--display)}
+  .discord span{color:#c9d6e6;font-size:15px}
+
+  /* admin */
+  #admin{display:none}
+  #admin.on{display:block}
+  .who{font-weight:600}
+
+  footer{margin-top:64px;border-top:2px solid var(--ink);padding:18px 0 40px;font-size:15px}
+  footer .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+
+  dialog{border:2px solid var(--ink);border-radius:12px;padding:0;max-width:460px;width:calc(100% - 32px);background:var(--panel);color:var(--ink);box-shadow:6px 6px 0 var(--ink)}
+  dialog::backdrop{background:rgba(29,42,59,.55)}
+  dialog form{display:grid;gap:14px;padding:22px}
+  dialog h3{margin:0;font:800 24px var(--display)}
+  .err{color:#b3123f;font-weight:600;font-size:15px;min-height:1.2em;margin:0}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-weight:600;z-index:50;display:none}
+  .toast.on{display:block}
+
+  @media (max-width:760px){
+    .orders,.discords{grid-template-columns:1fr}
+    body{font-size:16px}
+  }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top">Clipover</a>
+    <a class="link" href="#works">Works</a>
+    <a class="link" href="#orders">Orders</a>
+    <a class="link" href="#community">Discord</a>
+    <button class="btn small" id="signInBtn" type="button">Sign in</button>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <p class="lead">I make People Playground mods, Tampermonkey scripts and games. Browse what I've built, or order something made for you.</p>
+    <div class="stage" id="stage" aria-label="The name Clipover spelled out in tiles you can drag">
+      <span class="stage-hint">Drag the tiles</span>
+    </div>
+    <div class="row" style="margin-top:20px">
+      <a class="btn pink" href="#orders">Order a mod or script</a>
+      <a class="btn plain" href="#works">See my work</a>
+    </div>
+  </div>
+
+  <section id="works">
+    <div class="wrap">
+      <h2>Works</h2>
+      <p class="sub">Things I've made and shipped. Newest first.</p>
+      <div class="chips" id="chips" role="group" aria-label="Filter works by category"></div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+
+  <section id="admin">
+    <div class="wrap">
+      <h2>Add a work</h2>
+      <p class="sub">Signed in as <span class="who" id="whoami"></span>. Uploads are committed straight to your repository.</p>
+      <form class="panel" id="uploadForm">
+        <label>Title
+          <input name="title" required maxlength="80">
+        </label>
+        <label>Description
+          <textarea name="desc" maxlength="500"></textarea>
+        </label>
+        <label>Category
+          <select name="category">
+            <option>People Playground mod</option>
+            <option>Tampermonkey script</option>
+            <option>Game project</option>
+            <option>Other work</option>
+          </select>
+        </label>
+        <label>Link (optional)
+          <input name="link" type="url" placeholder="https://">
+        </label>
+        <label>Preview image (optional)
+          <input name="image" type="file" accept="image/*">
+        </label>
+        <label>Download file (optional)
+          <input name="file" type="file">
+        </label>
+        <p class="note">Files up to about 25 MB work. Larger builds are better as a link to a GitHub Release.</p>
+        <div class="row">
+          <button class="btn pink" type="submit" id="uploadBtn">Publish work</button>
+          <button class="btn plain" type="button" id="signOutBtn">Sign out</button>
+        </div>
+        <p class="err" id="uploadMsg" role="status"></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="orders">
+    <div class="wrap">
+      <h2>Orders</h2>
+      <p class="sub">Tell me what you want built. We agree on scope and price before I start.</p>
+      <div class="orders">
+        <div class="offer">
+          <h3>People Playground mods</h3>
+          <p style="margin:0;color:var(--muted)">Custom items, characters, machines and gameplay changes.</p>
+          <ul>
+            <li>What the mod should do or look like</li>
+            <li>Reference images or similar mods</li>
+            <li>Your game version</li>
+          </ul>
+        </div>
+        <div class="offer">
+          <h3>Tampermonkey scripts</h3>
+          <p style="margin:0;color:var(--muted)">Userscripts that change or automate a website in your browser.</p>
+          <ul>
+            <li>The site address it should run on</li>
+            <li>What it should click, show, hide or change</li>
+            <li>Your browser</li>
+          </ul>
+        </div>
+      </div>
+
+      <form class="panel" id="orderForm">
+        <label>What do you need?
+          <select name="type" id="orderType">
+            <option>People Playground mod</option>
+            <option>Tampermonkey script</option>
+          </select>
+        </label>
+        <label>Describe it
+          <textarea name="details" id="orderDetails" required placeholder="What should it do? Add site addresses, examples or anything that helps."></textarea>
+        </label>
+        <label>How should I reach you? (Discord name is best)
+          <input name="contact" id="orderContact">
+        </label>
+        <div class="row">
+          <button class="btn pink" type="submit" id="issueBtn">Send order on GitHub</button>
+          <a class="btn plain" href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener">Order on Discord</a>
+        </div>
+        <p class="note">GitHub orders open a public issue on this repository, so leave private details out. Use Discord for those.</p>
+      </form>
+    </div>
+  </section>
+
+  <section id="community">
+    <div class="wrap">
+      <h2>Join the Discords</h2>
+      <p class="sub">Updates, previews and chat happen here.</p>
+      <div class="discords">
+        <a class="discord" href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener">
+          <b>Clipover Studios</b>
+          <span>Orders, mods and scripts.</span>
+        </a>
+        <a class="discord" href="https://discord.gg/RkRf7UCCRY" target="_blank" rel="noopener">
+          <b>Clipover Games</b>
+          <span>Games and the people who play them.</span>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Made by Clipover</span>
+    <span><a href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener">Studios</a> and <a href="https://discord.gg/RkRf7UCCRY" target="_blank" rel="noopener">Games</a> on Discord</span>
+  </div>
+</footer>
+
+<dialog id="signInDialog">
+  <form method="dialog" id="signInForm">
+    <h3>Sign in</h3>
+    <p class="note">Sign in with a GitHub access token for your repository. It stays in this browser tab and is only sent to GitHub.</p>
+    <label>Repository owner
+      <input id="siOwner" required autocomplete="off">
+    </label>
+    <label>Repository name
+      <input id="siRepo" required autocomplete="off">
+    </label>
+    <label>GitHub token
+      <input id="siToken" type="password" required autocomplete="off">
+    </label>
+    <p class="err" id="siErr" role="alert"></p>
+    <div class="row">
+      <button class="btn pink" type="submit" id="siGo">Sign in</button>
+      <button class="btn plain" type="button" id="siCancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safeUrl = u => /^https?:\/\//i.test(u || "") ? u : "";
+const toast = msg => { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 2600); };
+
+/* Owner and repo are read from the GitHub Pages address (owner.github.io/repo). */
+function guessRepo(){
+  const h = location.hostname;
+  if (h.endsWith(".github.io")) {
+    const owner = h.split(".")[0];
+    const seg = location.pathname.split("/").filter(Boolean)[0];
+    return { owner, repo: seg && !seg.includes(".") ? seg : owner + ".github.io" };
+  }
+  return { owner: "", repo: "" };
+}
+const session = {
+  get(){ try { return JSON.parse(sessionStorage.getItem("clipover-session") || "null"); } catch { return null; } },
+  set(v){ try { sessionStorage.setItem("clipover-session", JSON.stringify(v)); } catch {} },
+  clear(){ try { sessionStorage.removeItem("clipover-session"); } catch {} }
+};
+let S = session.get();   // { owner, repo, token, branch, login }
+
+/* ---------- hero: draggable name tiles ---------- */
+(function hero(){
+  const stage = $("#stage");
+  const word = "Clipover".split("");
+  const colors = [["#e5338c","#fff"],["#ffcb3d","#1d2a3b"],["#2f6fed","#fff"],["#f3f6fa","#1d2a3b"],["#e5338c","#fff"],["#ffcb3d","#1d2a3b"],["#2f6fed","#fff"],["#f3f6fa","#1d2a3b"]];
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let tiles = [], raf = 0, W = 0, H = 0, size = 80;
+
+  function build(){
+    stage.querySelectorAll(".tile").forEach(t => t.remove());
+    W = stage.clientWidth; H = stage.clientHeight - 14;
+    size = Math.max(40, Math.min(110, (W - 30) / word.length - 6));
+    const gap = 6, total = word.length * size + (word.length - 1) * gap;
+    let x0 = (W - total) / 2;
+    tiles = word.map((ch, i) => {
+      const el = document.createElement("div");
+      el.className = "tile";
+      el.textContent = ch;
+      el.style.width = el.style.height = size + "px";
+      el.style.fontSize = size * 0.66 + "px";
+      el.style.background = colors[i][0]; el.style.color = colors[i][1];
+      stage.appendChild(el);
+      const homeX = x0 + i * (size + gap);
+      const t = { el, x: homeX, y: reduce ? H - size : -size - i * 70, vx: 0, vy: 0, r: reduce ? 0 : (Math.random() - .5) * 30, vr: (Math.random() - .5) * 4, drag: false };
+      place(t);
+      return t;
+    });
+    if (!reduce) loop();
+  }
+  const place = t => { t.el.style.transform = `translate(${t.x}px,${t.y}px) rotate(${t.r}deg)`; };
+
+  function step(){
+    let moving = false;
+    for (const t of tiles) {
+      if (t.drag) { moving = true; continue; }
+      t.vy += 0.6;
+      t.x += t.vx; t.y += t.vy; t.r += t.vr;
+      if (t.y > H - size) { t.y = H - size; t.vy *= -0.45; t.vx *= 0.88; t.vr *= 0.8; if (Math.abs(t.vy) < 1.2) t.vy = 0; }
+      if (t.x < 0) { t.x = 0; t.vx *= -0.5; }
+      if (t.x > W - size) { t.x = W - size; t.vx *= -0.5; }
+      if (t.y >= H - size - 0.5 && Math.abs(t.vx) < 0.15 && t.vy === 0) { t.vx = 0; t.r *= 0.85; if (Math.abs(t.r) < 0.3) t.r = 0; else moving = true; }
+      else moving = true;
+      place(t);
+    }
+    return moving;
+  }
+  function loop(){ cancelAnimationFrame(raf); const run = () => { if (step()) raf = requestAnimationFrame(run); }; raf = requestAnimationFrame(run); }
+
+  if (!reduce) {
+    stage.addEventListener("pointerdown", e => {
+      const el = e.target.closest(".tile"); if (!el) return;
+      const t = tiles.find(t => t.el === el); if (!t) return;
+      const rect = stage.getBoundingClientRect();
+      t.drag = true; el.classList.add("drag"); el.setPointerCapture(e.pointerId);
+      t.ox = e.clientX - rect.left - t.x; t.oy = e.clientY - rect.top - t.y;
+      t.lx = t.x; t.ly = t.y; t.vx = t.vy = 0; t.vr = 0;
+      el.style.zIndex = 5; loop();
+      const move = ev => {
+        const nx = ev.clientX - rect.left - t.ox, ny = ev.clientY - rect.top - t.oy;
+        t.vx = nx - t.lx; t.vy = ny - t.ly; t.lx = t.x = Math.max(0, Math.min(W - size, nx)); t.ly = t.y = Math.max(-40, Math.min(H - size, ny));
+        place(t);
+      };
+      const up = () => { t.drag = false; el.classList.remove("drag"); t.vr = t.vx * 0.8; el.style.zIndex = ""; el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); loop(); };
+      el.addEventListener("pointermove", move); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+    });
+  } else { $(".stage-hint").remove(); }
+
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(build, 200); });
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(build);
+})();
+
+/* ---------- works ---------- */
+let works = [], filter = "All";
+async function loadWorks(){
+  try {
+    const r = await fetch("works.json?" + Date.now());
+    if (!r.ok) throw 0;
+    const data = await r.json();
+    works = (data.works || []).slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  } catch { works = []; }
+  renderWorks();
+}
+function renderWorks(){
+  const cats = ["All", ...new Set(works.map(w => w.category).filter(Boolean))];
+  const chips = $("#chips");
+  chips.innerHTML = cats.length > 2 ? cats.map(c => `<button class="chip" type="button" aria-pressed="${c === filter}" data-c="${esc(c)}">${esc(c)}</button>`).join("") : "";
+  const list = works.filter(w => filter === "All" || w.category === filter);
+  const grid = $("#grid");
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><strong>No works posted yet.</strong><p style="margin:6px 0 0;color:var(--muted)">New mods, scripts and projects will show up here.</p></div>`;
+    return;
+  }
+  const palette = ["#e5338c","#ffcb3d","#2f6fed"];
+  grid.innerHTML = list.map((w, i) => {
+    const img = w.image ? `<img src="${esc(w.image)}" alt="" loading="lazy">` : esc((w.title || "?")[0].toUpperCase());
+    const bg = w.image ? "" : `style="background:${palette[i % 3]};color:${i % 3 === 1 ? "#1d2a3b" : "#fff"}"`;
+    const link = safeUrl(w.link) ? `<a class="btn small" href="${esc(w.link)}" target="_blank" rel="noopener">Open</a>` : "";
+    const dl = w.file ? `<a class="btn small plain" href="${esc(w.file)}" download>Download</a>` : "";
+    const del = S ? `<button class="btn small plain" type="button" data-del="${esc(w.id)}">Delete</button>` : "";
+    return `<article class="card"><div class="thumb" ${bg}>${img}</div><div class="body">
+      ${w.category ? `<span class="tag">${esc(w.category)}</span>` : ""}
+      <h3>${esc(w.title)}</h3>${w.desc ? `<p>${esc(w.desc)}</p>` : ""}
+      <div class="actions">${link}${dl}${del}</div></div></article>`;
+  }).join("");
+}
+$("#chips").addEventListener("click", e => { const b = e.target.closest("[data-c]"); if (b) { filter = b.dataset.c; renderWorks(); } });
+
+/* ---------- GitHub API ---------- */
+async function gh(path, opts = {}, auth = S){
+  const r = await fetch("https://api.github.com" + path, { ...opts, headers: { Accept: "application/vnd.github+json", Authorization: "Bearer " + auth.token, "Content-Type": "application/json", ...(opts.headers || {}) } });
+  if (!r.ok) { let m = "GitHub error " + r.status; try { m = (await r.json()).message || m; } catch {} const e = new Error(m); e.status = r.status; throw e; }
+  return r.status === 204 ? null : r.json();
+}
+const b64FromFile = f => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = () => rej(new Error("Could not read " + f.name)); fr.readAsDataURL(f); });
+const b64FromText = s => btoa(unescape(encodeURIComponent(s)));
+const textFromB64 = b => decodeURIComponent(escape(atob(b.replace(/\n/g, ""))));
+const safeName = n => n.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "file";
+const cp = p => "/repos/" + S.owner + "/" + S.repo + "/contents/" + p;
+
+async function putFile(path, b64, message){
+  let sha; try { sha = (await gh(cp(path) + "?ref=" + S.branch)).sha; } catch (e) { if (e.status !== 404) throw e; }
+  return gh(cp(path), { method: "PUT", body: JSON.stringify({ message, content: b64, branch: S.branch, ...(sha ? { sha } : {}) }) });
+}
+async function readWorksJson(){
+  try { const f = await gh(cp("works.json") + "?ref=" + S.branch); return { data: JSON.parse(textFromB64(f.content)), sha: f.sha }; }
+  catch (e) { if (e.status === 404) return { data: { works: [] }, sha: null }; throw e; }
+}
+async function saveWorksJson(data, sha, message){
+  return gh(cp("works.json"), { method: "PUT", body: JSON.stringify({ message, content: b64FromText(JSON.stringify(data, null, 2) + "\n"), branch: S.branch, ...(sha ? { sha } : {}) }) });
+}
+
+/* ---------- sign in ---------- */
+const dlg = $("#signInDialog");
+function setSignedIn(on){
+  $("#admin").classList.toggle("on", on);
+  $("#signInBtn").textContent = on ? "Signed in" : "Sign in";
+  if (on) $("#whoami").textContent = S.login;
+  renderWorks();
+}
+$("#signInBtn").addEventListener("click", () => {
+  if (S) { $("#admin").scrollIntoView(); return; }
+  const g = guessRepo();
+  $("#siOwner").value = g.owner; $("#siRepo").value = g.repo; $("#siToken").value = ""; $("#siErr").textContent = "";
+  dlg.showModal();
+});
+$("#siCancel").addEventListener("click", () => dlg.close());
+$("#signInForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const go = $("#siGo"), err = $("#siErr");
+  go.disabled = true; err.textContent = "Checking with GitHub...";
+  const cand = { owner: $("#siOwner").value.trim(), repo: $("#siRepo").value.trim(), token: $("#siToken").value.trim() };
+  try {
+    const me = await gh("/user", {}, cand);
+    const repo = await gh("/repos/" + cand.owner + "/" + cand.repo, {}, cand);
+    if (!repo.permissions || !repo.permissions.push) throw new Error("This token can't write to " + cand.owner + "/" + cand.repo + ". Give it Contents: read and write on that repository.");
+    S = { ...cand, branch: repo.default_branch, login: me.login };
+    session.set(S);
+    dlg.close(); setSignedIn(true); toast("Signed in as " + me.login);
+    $("#admin").scrollIntoView();
+  } catch (ex) {
+    err.textContent = ex.status === 401 ? "GitHub rejected that token. Check it and try again." : ex.message;
+  } finally { go.disabled = false; }
+});
+$("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); toast("Signed out"); });
+
+/* ---------- upload ---------- */
+$("#uploadForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!S) return;
+  const f = e.target, btn = $("#uploadBtn"), msg = $("#uploadMsg");
+  const img = f.image.files[0], file = f.file.files[0];
+  for (const x of [img, file]) if (x && x.size > 25 * 1024 * 1024) { msg.textContent = x.name + " is over 25 MB. Share it as a GitHub Release link instead."; return; }
+  btn.disabled = true; msg.style.color = ""; msg.textContent = "Publishing...";
+  try {
+    const id = Date.now().toString(36);
+    const entry = { id, title: f.title.value.trim(), desc: f.desc.value.trim(), category: f.category.value, link: safeUrl(f.link.value.trim()), date: new Date().toISOString() };
+    if (img) { const p = `works/${id}-${safeName(img.name)}`; await putFile(p, await b64FromFile(img), "Add preview for " + entry.title); entry.image = p; }
+    if (file) { const p = `works/${id}-${safeName(file.name)}`; await putFile(p, await b64FromFile(file), "Add file for " + entry.title); entry.file = p; }
+    const { data, sha } = await readWorksJson();
+    data.works = [entry, ...(data.works || [])];
+    await saveWorksJson(data, sha, "Add work: " + entry.title);
+    works = [entry, ...works]; renderWorks();
+    f.reset(); msg.textContent = "Published. The live site updates in a minute or two.";
+    toast("Work published");
+  } catch (ex) { msg.style.color = "#b3123f"; msg.textContent = ex.message; }
+  finally { btn.disabled = false; }
+});
+
+/* ---------- delete ---------- */
+$("#grid").addEventListener("click", async e => {
+  const b = e.target.closest("[data-del]"); if (!b || !S) return;
+  const w = works.find(x => x.id === b.dataset.del); if (!w) return;
+  if (!confirm('Delete "' + w.title + '"? This removes it and its uploaded files from the repository.')) return;
+  b.disabled = true;
+  try {
+    const { data, sha } = await readWorksJson();
+    data.works = (data.works || []).filter(x => x.id !== w.id);
+    await saveWorksJson(data, sha, "Remove work: " + w.title);
+    for (const p of [w.image, w.file].filter(Boolean)) {
+      try { const cur = await gh(cp(p) + "?ref=" + S.branch); await gh(cp(p), { method: "DELETE", body: JSON.stringify({ message: "Remove " + p, sha: cur.sha, branch: S.branch }) }); } catch {}
+    }
+    works = works.filter(x => x.id !== w.id); renderWorks(); toast("Deleted");
+  } catch (ex) { toast(ex.message); b.disabled = false; }
+});
+
+/* ---------- orders ---------- */
+$("#orderForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const g = guessRepo(), o = S ? S.owner : g.owner, r = S ? S.repo : g.repo;
+  const type = $("#orderType").value, details = $("#orderDetails").value.trim(), contact = $("#orderContact").value.trim();
+  if (!o || !r) { toast("GitHub orders work once the site is live on GitHub Pages. Use the Discord button for now."); return; }
+  const body = `**Type:** ${type}\n**Contact:** ${contact || "(not given)"}\n\n${details}`;
+  const url = `https://github.com/${o}/${r}/issues/new?labels=order&title=${encodeURIComponent("Order: " + type)}&body=${encodeURIComponent(body)}`;
+  window.open(url, "_blank", "noopener");
+});
+
+/* ---------- start ---------- */
+loadWorks();
+if (S) setSignedIn(true);
+</script>
+</body>
+</html>
