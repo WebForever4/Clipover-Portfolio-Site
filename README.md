@@ -2,7 +2,7 @@
 
 ## Put it on GitHub
 1. On GitHub, create a **public** repository. Name it `YOUR-USERNAME.github.io` to get `https://YOUR-USERNAME.github.io`, or any name to get `https://YOUR-USERNAME.github.io/REPO`.
-2. Upload `index.html` and `works.json` to the repository root.
+2. Upload `index.html`, `clippy.jpg` and `works.json` to the repository root.
 3. Go to **Settings > Pages**, choose **Deploy from a branch**, pick `main` and `/ (root)`, then save.
 
 ## Sign in and upload
