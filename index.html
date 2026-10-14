@@ -10,168 +10,182 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
 <style>
-  /* Everything sits on a 32px ruled line, like writing on a legal pad. */
   :root{
-    --u:32px;
-    --pad:#fcf0a0;
-    --rule:rgba(63,114,196,.30);
-    --ink:#1f2540;
-    --soft:#4a4f68;
-    --red:#cf4352;
+    --paper:#ffffff;
+    --ink:#22252b;
+    --muted:#5a6070;
+    --line:#d3d6dc;
+    --blue:#2447c5;
+    --pad:#f6efb4;
     --font:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{
-    margin:0;color:var(--ink);font:17px/var(--u) var(--font);
-    background-color:var(--pad);
-    background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--u) - 1px),var(--rule) calc(var(--u) - 1px),var(--rule) var(--u));
-  }
-  a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--red);text-decoration-thickness:2px;text-underline-offset:4px}
-  a:hover{background:rgba(207,67,82,.16)}
-  :focus-visible{outline:3px solid var(--red);outline-offset:2px}
+  body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.55 var(--font)}
+  a{color:var(--blue)}
+  :focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-  .page{position:relative;max-width:940px;margin:0 auto;padding:var(--u) 28px calc(var(--u)*3) 88px}
-  .page::before,.page::after{content:"";position:absolute;top:0;bottom:0;width:1px;background:var(--red);opacity:.8}
-  .page::before{left:58px}
-  .page::after{left:63px}
+  /* top bar */
+  .nav{position:sticky;top:0;z-index:20;background:var(--paper);border-bottom:1px solid var(--line)}
+  .nav .wrap{display:flex;align-items:center;gap:26px;min-height:60px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:10px;margin-right:auto;color:var(--ink);text-decoration:none;font-weight:800;font-size:20px;font-stretch:115%;letter-spacing:-.01em}
+  .brand img{height:34px;width:auto;mix-blend-mode:multiply;display:block}
+  .nav a.link{color:var(--ink);text-decoration:none;font-weight:600;font-size:16px}
+  .nav a.link:hover{color:var(--blue);text-decoration:underline;text-underline-offset:5px}
+  .linkbtn{font:600 16px var(--font);color:var(--ink);background:none;border:0;padding:0;cursor:pointer}
+  .linkbtn:hover{color:var(--blue);text-decoration:underline;text-underline-offset:5px}
+  .linkbtn.danger{color:#a8222f;font-size:15px}
 
-  /* header */
-  .top{display:flex;align-items:flex-end;gap:22px}
-  .logo{height:calc(var(--u)*3);width:auto;display:block;mix-blend-mode:multiply;flex:none}
-  h1{margin:0;font-size:68px;line-height:calc(var(--u)*3);font-weight:800;font-stretch:125%;letter-spacing:-.025em}
-  .tagline{margin:0;color:var(--soft)}
-  nav ul{list-style:none;margin:0;padding:0;display:flex;gap:26px;flex-wrap:wrap}
-  .linkbtn{font:inherit;color:var(--ink);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-decoration-color:var(--red);text-decoration-thickness:2px;text-underline-offset:4px}
-  .linkbtn:hover{background:rgba(207,67,82,.16)}
+  /* buttons */
+  .btn{font:700 15px/1 var(--font);color:#fff;background:var(--blue);border:2px solid var(--blue);border-radius:3px;padding:12px 18px;cursor:pointer;text-decoration:none;display:inline-block}
+  .btn:hover{background:#1b389f;border-color:#1b389f}
+  .btn.second{background:var(--paper);color:var(--ink);border-color:var(--ink)}
+  .btn.second:hover{background:#eef0f3;border-color:var(--ink)}
+  .btn.small{padding:8px 12px;font-size:14px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
 
-  .intro{font-size:22px;max-width:27em;margin:var(--u) 0 0}
+  /* hero */
+  .hero{padding-top:44px;padding-bottom:8px}
+  .lead-big{font-size:22px;line-height:1.5;max-width:30em;margin:0 0 24px}
+  .stage{position:relative;height:clamp(250px,36vw,340px);background:var(--pad);border:1px solid var(--line);overflow:hidden;touch-action:none}
+  .stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--ink)}
+  .tile{position:absolute;left:0;top:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-stretch:125%;line-height:1;user-select:none;-webkit-user-select:none;cursor:grab;border:1px solid var(--ink);border-radius:2px;touch-action:none}
+  .tile.clip{border:0;background:none;border-radius:0;mix-blend-mode:multiply}
+  .tile.clip img{width:100%;height:100%;display:block;pointer-events:none}
+  .tile.drag{cursor:grabbing}
+  .stage-hint{position:absolute;right:12px;top:10px;font-size:14px;color:var(--muted);pointer-events:none}
+  .hero .row{margin-top:22px}
 
-  /* sections: each one starts with a heavier ink line */
-  section{position:relative;margin-top:calc(var(--u)*2);padding-top:var(--u);scroll-margin-top:var(--u)}
-  section::before{content:"";position:absolute;left:0;right:0;top:-2px;height:2px;background:var(--ink)}
-  h2{margin:0;font-size:36px;line-height:calc(var(--u)*2);font-weight:800;font-stretch:125%;letter-spacing:-.02em}
-  h3{margin:0;font-size:18px;line-height:var(--u);font-weight:700}
-  .lead{margin:0 0 var(--u);color:var(--soft);max-width:34em}
+  /* sections */
+  section{padding:64px 0 0;scroll-margin-top:60px}
+  h2{margin:0 0 6px;font-size:clamp(28px,4.4vw,38px);line-height:1.1;font-weight:800;font-stretch:125%;letter-spacing:-.02em}
+  h3{margin:0;font-size:19px;line-height:1.25;font-weight:700}
+  .sub{margin:0 0 26px;color:var(--muted);max-width:38em}
   p{margin:0}
 
   /* works */
-  .chips{display:flex;flex-wrap:wrap;gap:0 6px;margin:0 0 var(--u);min-height:var(--u)}
-  .chip{font:600 15px/var(--u) var(--font);height:var(--u);padding:0 12px;background:none;border:0;border-radius:3px;color:var(--ink);cursor:pointer}
-  .chip:hover{background:rgba(31,37,64,.1)}
-  .chip[aria-pressed="true"]{background:var(--ink);color:var(--pad)}
-  .works{list-style:none;margin:0;padding:0}
-  .work{display:grid;grid-template-columns:128px minmax(0,1fr);gap:0 24px;margin-bottom:var(--u)}
-  .thumb{width:128px;height:calc(var(--u)*3);background:var(--ink);color:var(--pad);display:flex;align-items:center;justify-content:center;font:800 44px var(--font);font-stretch:125%;overflow:hidden;border-radius:2px}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 22px}
+  .chip{font:600 15px var(--font);background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:2px;padding:6px 13px;cursor:pointer}
+  .chip:hover{border-color:var(--ink)}
+  .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+  .grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:22px}
+  .card{display:flex;flex-direction:column;border:1px solid var(--line);background:var(--paper)}
+  .thumb{aspect-ratio:16/10;background:#eceef2;display:flex;align-items:center;justify-content:center;font:800 48px var(--font);font-stretch:125%;color:var(--muted);overflow:hidden}
   .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-  .meta{font-size:14px;color:var(--soft)}
-  .desc{max-width:34em}
-  .acts{display:flex;gap:22px;flex-wrap:wrap;font-size:15px;font-weight:600}
-  .empty{color:var(--soft);margin-bottom:var(--u)}
+  .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
+  .meta{font-size:14px;color:var(--muted)}
+  .desc{font-size:16px;color:var(--ink)}
+  .acts{margin-top:auto;padding-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .empty{grid-column:1/-1;color:var(--muted);padding:8px 0}
 
   /* orders */
-  .offers{display:grid;grid-template-columns:1fr 1fr;gap:0 var(--u);margin-bottom:var(--u)}
-  .offers p{font-size:16px}
-
-  form{max-width:640px}
-  .field{display:grid;grid-template-columns:190px minmax(0,1fr);align-items:start;margin-bottom:var(--u)}
-  .field>label,.field>span{font-weight:700;font-size:15px;line-height:var(--u)}
-  .field.stack{grid-template-columns:1fr}
-  input,select,textarea{font:16px var(--font);color:var(--ink);background:transparent;border:0;border-radius:0;width:100%}
-  input,select{height:var(--u);padding:0 4px;border-bottom:2px solid var(--ink)}
-  input[type=file]{font-size:14px;padding:2px 0}
-  textarea{height:calc(var(--u)*4);line-height:var(--u);padding:0 4px 0 10px;border-left:2px solid var(--ink);resize:none}
-  ::placeholder{color:var(--soft);opacity:.85}
-  input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--red);outline-offset:2px}
-  .btn{font:700 15px/28px var(--font);color:var(--pad);background:var(--ink);border:2px solid var(--ink);border-radius:3px;height:var(--u);padding:0 16px;cursor:pointer;text-decoration:none;display:inline-block}
-  .btn:hover{background:#000;color:var(--pad)}
-  .btn.second{background:transparent;color:var(--ink)}
-  .btn.second:hover{background:rgba(31,37,64,.1)}
-  .btn:disabled{opacity:.5;cursor:not-allowed}
-  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:var(--u)}
-  .note{font-size:14px;color:var(--soft);margin-bottom:var(--u);max-width:34em}
-  .err{color:#a8222f;font-weight:600;font-size:14px;min-height:var(--u)}
+  .offers{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-bottom:34px}
+  .offer{border-top:2px solid var(--ink);padding-top:12px}
+  .offer p{margin-top:6px;color:var(--muted);font-size:16px}
+  form{display:grid;gap:16px;max-width:600px}
+  label{display:grid;gap:5px;font-weight:700;font-size:15px}
+  input,select,textarea{font:16px var(--font);color:var(--ink);background:var(--paper);border:1px solid #8b919d;border-radius:2px;padding:10px 12px;width:100%}
+  input[type=file]{padding:8px}
+  textarea{min-height:120px;resize:vertical}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .note{font-size:14px;color:var(--muted)}
+  .err{min-height:1.3em;color:#a8222f;font-weight:600;font-size:14px}
 
   /* discord */
-  .discords{list-style:none;margin:0 0 var(--u);padding:0}
+  .discords{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .discord{display:block;color:var(--ink);text-decoration:none;border:1px solid var(--ink);padding:20px 22px}
+  .discord b{display:block;font-size:22px;font-weight:800;font-stretch:115%;letter-spacing:-.01em}
+  .discord span{color:var(--muted);font-size:16px}
+  .discord:hover{background:var(--pad)}
+  .discord:hover b{text-decoration:underline;text-underline-offset:5px;text-decoration-thickness:2px}
 
   #admin{display:none}
   #admin.on{display:block}
 
-  footer{margin-top:calc(var(--u)*2);color:var(--soft);font-size:14px}
+  footer{margin-top:72px;border-top:1px solid var(--line);padding:20px 0 40px;font-size:15px;color:var(--muted)}
 
-  dialog{padding:0;background:#fffdf2;border:2px solid var(--ink);border-radius:3px;max-width:440px;width:calc(100% - 28px);color:var(--ink)}
-  dialog::backdrop{background:rgba(31,37,64,.5)}
-  dialog form{padding:var(--u) 24px 0;max-width:none}
-  dialog h3{font-size:22px;line-height:var(--u);margin-bottom:var(--u)}
-  dialog .note{margin-bottom:var(--u)}
+  dialog{padding:0;background:var(--paper);border:2px solid var(--ink);border-radius:3px;max-width:440px;width:calc(100% - 28px);color:var(--ink)}
+  dialog::backdrop{background:rgba(34,37,43,.5)}
+  dialog form{padding:22px;max-width:none}
+  dialog h3{font-size:22px}
 
-  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--pad);padding:8px 16px;border-radius:3px;font-weight:600;font-size:15px;z-index:50;display:none}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:3px;font-weight:600;font-size:15px;z-index:50;display:none}
   .toast.on{display:block}
 
-  @media (max-width:720px){
+  @media (max-width:760px){
     body{font-size:16px}
-    .page{padding:var(--u) 18px calc(var(--u)*3) 46px}
-    .page::before{left:26px}
-    .page::after{left:31px}
-    .logo{height:calc(var(--u)*2)}
-    h1{font-size:40px;line-height:calc(var(--u)*2)}
-    .intro{font-size:19px}
-    h2{font-size:28px}
-    .offers{grid-template-columns:1fr}
-    .field{grid-template-columns:1fr}
-    .work{grid-template-columns:96px minmax(0,1fr);gap:0 16px}
-    .thumb{width:96px;height:calc(var(--u)*2);font-size:30px}
+    .nav .wrap{gap:18px;min-height:56px}
+    .brand span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+    .nav a.link,.linkbtn{font-size:15px}
+    .offers,.discords{grid-template-columns:1fr}
+    .lead-big{font-size:19px}
+    section{padding-top:48px}
   }
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
-<div class="page">
 
-  <header>
-    <div class="top">
-      <img class="logo" src="clippy.jpg" alt="Clipover logo: a paperclip with googly eyes on a sheet of notepaper">
-      <h1>Clipover</h1>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="clippy.jpg" alt=""><span>Clipover</span></a>
+    <a class="link" href="#works">Works</a>
+    <a class="link" href="#orders">Orders</a>
+    <a class="link" href="#community">Discord</a>
+    <button class="linkbtn" id="signInBtn" type="button">Sign in</button>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <h1 class="sr">Clipover</h1>
+    <p class="lead-big">I make People Playground mods and Tampermonkey scripts, and I'm building games. Browse what I've made, or order something built for you.</p>
+    <div class="stage" id="stage" role="img" aria-label="The name Clipover spelled in tiles, with the Clipover paperclip logo. They can be dragged around.">
+      <span class="stage-hint">Drag them around</span>
     </div>
-    <p class="tagline">Mods, scripts and games.</p>
-    <nav aria-label="Sections">
-      <ul>
-        <li><a href="#works">Works</a></li>
-        <li><a href="#orders">Orders</a></li>
-        <li><a href="#community">Discord</a></li>
-        <li><button class="linkbtn" id="signInBtn" type="button">Sign in</button></li>
-      </ul>
-    </nav>
-  </header>
+    <div class="row">
+      <a class="btn" href="#orders">Order a mod or script</a>
+      <a class="btn second" href="#works">See my works</a>
+    </div>
+  </div>
 
-  <main>
-    <p class="intro">I make mods for People Playground and userscripts for Tampermonkey, and I'm building games. Orders for mods and scripts are open. <a href="#orders">Order something.</a></p>
-
+  <div class="wrap">
     <section id="works">
       <h2>Works</h2>
-      <p class="lead">Things I've made, newest first.</p>
+      <p class="sub">Things I've made and shipped, newest first.</p>
       <div class="chips" id="chips" role="group" aria-label="Filter works by category"></div>
-      <ul class="works" id="grid"></ul>
+      <ul class="grid" id="grid"></ul>
     </section>
 
     <section id="admin">
       <h2>Add a work</h2>
-      <p class="lead">Signed in as <strong id="whoami"></strong>. Uploads are saved straight to your repository.</p>
+      <p class="sub">Signed in as <strong id="whoami"></strong>. Uploads are saved straight to your repository.</p>
       <form id="uploadForm">
-        <div class="field"><label for="upTitle">Title</label><input id="upTitle" name="title" required maxlength="80"></div>
-        <div class="field"><label for="upDesc">Description</label><textarea id="upDesc" name="desc" maxlength="500"></textarea></div>
-        <div class="field"><label for="upCat">Category</label>
-          <select id="upCat" name="category">
+        <label>Title
+          <input name="title" required maxlength="80">
+        </label>
+        <label>Description
+          <textarea name="desc" maxlength="500"></textarea>
+        </label>
+        <label>Category
+          <select name="category">
             <option>People Playground mod</option>
             <option>Tampermonkey script</option>
             <option>Game project</option>
             <option>Other work</option>
           </select>
-        </div>
-        <div class="field"><label for="upLink">Link (optional)</label><input id="upLink" name="link" type="url" placeholder="https://"></div>
-        <div class="field"><label for="upImg">Preview image (optional)</label><input id="upImg" name="image" type="file" accept="image/*"></div>
-        <div class="field"><label for="upFile">Download file (optional)</label><input id="upFile" name="file" type="file"></div>
+        </label>
+        <label>Link (optional)
+          <input name="link" type="url" placeholder="https://">
+        </label>
+        <label>Preview image (optional)
+          <input name="image" type="file" accept="image/*">
+        </label>
+        <label>Download file (optional)
+          <input name="file" type="file">
+        </label>
         <p class="note">Files up to about 25 MB work. For bigger builds, link to a GitHub Release.</p>
         <div class="row">
           <button class="btn" type="submit" id="uploadBtn">Publish work</button>
@@ -183,31 +197,31 @@
 
     <section id="orders">
       <h2>Orders</h2>
-      <p class="lead">Tell me what you want built. We agree on scope and price before I start.</p>
+      <p class="sub">Tell me what you want built. We agree on scope and price before I start.</p>
       <div class="offers">
-        <div>
+        <div class="offer">
           <h3>People Playground mods</h3>
           <p>Custom items, characters, machines and gameplay changes. Tell me what it should do, send reference images, and say which game version you play.</p>
         </div>
-        <div>
+        <div class="offer">
           <h3>Tampermonkey scripts</h3>
           <p>Userscripts that change or automate a website. Tell me the site address, what it should click, show, hide or change, and which browser you use.</p>
         </div>
       </div>
 
       <form id="orderForm">
-        <div class="field"><label for="orderType">What do you need?</label>
+        <label>What do you need?
           <select name="type" id="orderType">
             <option>People Playground mod</option>
             <option>Tampermonkey script</option>
           </select>
-        </div>
-        <div class="field"><label for="orderDetails">Describe it</label>
+        </label>
+        <label>Describe it
           <textarea name="details" id="orderDetails" required placeholder="What should it do? Add site addresses, examples or anything that helps."></textarea>
-        </div>
-        <div class="field"><label for="orderContact">Your Discord name</label>
-          <input name="contact" id="orderContact" placeholder="or another way to reach you">
-        </div>
+        </label>
+        <label>How should I reach you? A Discord name is best.
+          <input name="contact" id="orderContact">
+        </label>
         <div class="row">
           <button class="btn" type="submit" id="issueBtn">Send order on GitHub</button>
           <a class="btn second" href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener">Order on Discord</a>
@@ -217,25 +231,33 @@
     </section>
 
     <section id="community">
-      <h2>Discord</h2>
-      <p class="lead">Updates, previews and chat happen on my servers.</p>
-      <ul class="discords">
-        <li><a href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener">Clipover Studios</a> for orders, mods and scripts.</li>
-        <li><a href="https://discord.gg/RkRf7UCCRY" target="_blank" rel="noopener">Clipover Games</a> for games and the people who play them.</li>
-      </ul>
+      <h2>Join the Discords</h2>
+      <p class="sub">Updates, previews and chat happen here.</p>
+      <div class="discords">
+        <a class="discord" href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener"><b>Clipover Studios</b><span>Orders, mods and scripts.</span></a>
+        <a class="discord" href="https://discord.gg/RkRf7UCCRY" target="_blank" rel="noopener"><b>Clipover Games</b><span>Games and the people who play them.</span></a>
+      </div>
     </section>
-  </main>
+  </div>
+</main>
 
-  <footer>Made by Clipover</footer>
-</div>
+<footer>
+  <div class="wrap">Made by Clipover</div>
+</footer>
 
 <dialog id="signInDialog">
   <form method="dialog" id="signInForm">
     <h3>Sign in</h3>
     <p class="note">Sign in with a GitHub access token for your repository. It stays in this browser tab and is only sent to GitHub.</p>
-    <div class="field stack"><label for="siOwner">Repository owner</label><input id="siOwner" required autocomplete="off"></div>
-    <div class="field stack"><label for="siRepo">Repository name</label><input id="siRepo" required autocomplete="off"></div>
-    <div class="field stack"><label for="siToken">GitHub token</label><input id="siToken" type="password" required autocomplete="off"></div>
+    <label>Repository owner
+      <input id="siOwner" required autocomplete="off">
+    </label>
+    <label>Repository name
+      <input id="siRepo" required autocomplete="off">
+    </label>
+    <label>GitHub token
+      <input id="siToken" type="password" required autocomplete="off">
+    </label>
     <p class="err" id="siErr" role="alert"></p>
     <div class="row">
       <button class="btn" type="submit" id="siGo">Sign in</button>
@@ -247,6 +269,7 @@
 <div class="toast" id="toast" role="status"></div>
 
 <script>
+
 
 
 
@@ -273,6 +296,76 @@ const session = {
 };
 let S = session.get();   // { owner, repo, token, branch, login }
 
+/* ---------- hero: draggable name tiles and Clippy ---------- */
+(function hero(){
+  const stage = $("#stage");
+  const word = "Clipover".split("");
+  const fills = [["#22252b","#fff"],["#fff","#22252b"],["#2447c5","#fff"],["#fff","#22252b"],["#22252b","#fff"],["#fff","#22252b"],["#2447c5","#fff"],["#fff","#22252b"]];
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let tiles = [], raf = 0, W = 0, H = 0;
+  const place = t => { t.el.style.transform = `translate(${t.x}px,${t.y}px) rotate(${t.r}deg)`; };
+
+  function build(){
+    stage.querySelectorAll(".tile").forEach(t => t.remove());
+    W = stage.clientWidth; H = stage.clientHeight - 3;
+    const gap = W < 520 ? 4 : 6, n = word.length, clipR = W < 520 ? 1.3 : 1.7;
+    const size = Math.max(26, Math.min(104, (W - 20 - gap * n) / (n + clipR)));
+    const clipW = size * clipR, clipH = clipW * 168 / 300;
+    let x = (W - (clipW + n * size + n * gap)) / 2;
+    const items = [{ clip: true, w: clipW, h: clipH }, ...word.map((ch, i) => ({ ch, w: size, h: size, fill: fills[i] }))];
+    tiles = items.map((it, i) => {
+      const el = document.createElement("div");
+      el.className = "tile" + (it.clip ? " clip" : "");
+      el.style.width = it.w + "px"; el.style.height = it.h + "px";
+      if (it.clip) { const im = document.createElement("img"); im.src = "clippy.jpg"; im.alt = ""; im.draggable = false; el.appendChild(im); }
+      else { el.textContent = it.ch; el.style.fontSize = size * 0.62 + "px"; el.style.background = it.fill[0]; el.style.color = it.fill[1]; }
+      stage.appendChild(el);
+      const t = { el, w: it.w, h: it.h, x, y: reduce ? H - it.h : -it.h - i * 70, vx: 0, vy: 0, r: reduce ? 0 : (Math.random() - .5) * 30, vr: (Math.random() - .5) * 4, drag: false };
+      x += it.w + gap; place(t); return t;
+    });
+    if (!reduce) loop();
+  }
+
+  function step(){
+    let moving = false;
+    for (const t of tiles) {
+      if (t.drag) { moving = true; continue; }
+      t.vy += 0.6; t.x += t.vx; t.y += t.vy; t.r += t.vr;
+      if (t.y > H - t.h) { t.y = H - t.h; t.vy *= -0.45; t.vx *= 0.88; t.vr *= 0.8; if (Math.abs(t.vy) < 1.2) t.vy = 0; }
+      if (t.x < 0) { t.x = 0; t.vx *= -0.5; }
+      if (t.x > W - t.w) { t.x = W - t.w; t.vx *= -0.5; }
+      if (t.y >= H - t.h - 0.5 && Math.abs(t.vx) < 0.15 && t.vy === 0) { t.vx = 0; t.r *= 0.85; if (Math.abs(t.r) < 0.3) t.r = 0; else moving = true; }
+      else moving = true;
+      place(t);
+    }
+    return moving;
+  }
+  function loop(){ cancelAnimationFrame(raf); const run = () => { if (step()) raf = requestAnimationFrame(run); }; raf = requestAnimationFrame(run); }
+
+  if (!reduce) {
+    stage.addEventListener("pointerdown", e => {
+      const el = e.target.closest(".tile"); if (!el) return;
+      const t = tiles.find(t => t.el === el); if (!t) return;
+      const rect = stage.getBoundingClientRect();
+      t.drag = true; el.classList.add("drag"); el.setPointerCapture(e.pointerId);
+      t.ox = e.clientX - rect.left - t.x; t.oy = e.clientY - rect.top - t.y;
+      t.lx = t.x; t.ly = t.y; t.vx = t.vy = 0; t.vr = 0;
+      el.style.zIndex = 5; loop();
+      const move = ev => {
+        const nx = ev.clientX - rect.left - t.ox, ny = ev.clientY - rect.top - t.oy;
+        t.vx = nx - t.lx; t.vy = ny - t.ly;
+        t.lx = t.x = Math.max(0, Math.min(W - t.w, nx)); t.ly = t.y = Math.max(-40, Math.min(H - t.h, ny));
+        place(t);
+      };
+      const up = () => { t.drag = false; el.classList.remove("drag"); t.vr = t.vx * 0.8; el.style.zIndex = ""; el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); loop(); };
+      el.addEventListener("pointermove", move); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+    });
+  } else { const h = $(".stage-hint"); if (h) h.remove(); }
+
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(build, 200); });
+  (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(build);
+})();
+
 /* ---------- works ---------- */
 let works = [], filter = "All";
 async function loadWorks(){
@@ -289,17 +382,17 @@ function renderWorks(){
   $("#chips").innerHTML = cats.length > 2 ? cats.map(c => `<button class="chip" type="button" aria-pressed="${c === filter}" data-c="${esc(c)}">${esc(c)}</button>`).join("") : "";
   const list = works.filter(w => filter === "All" || w.category === filter);
   const el = $("#grid");
-  if (!list.length) { el.innerHTML = `<li class="empty">Nothing posted here yet. New mods, scripts and projects will show up in this list.</li>`; return; }
+  if (!list.length) { el.innerHTML = `<li class="empty">Nothing posted here yet. New mods, scripts and projects will show up here.</li>`; return; }
   el.innerHTML = list.map(w => {
     const img = w.image ? `<img src="${esc(w.image)}" alt="" loading="lazy">` : esc((w.title || "?")[0].toUpperCase());
     const when = w.date ? new Date(w.date).toLocaleDateString(undefined, { year: "numeric", month: "short" }) : "";
     const meta = [w.category, when].filter(Boolean).join(", ");
     const acts = [
-      safeUrl(w.link) ? `<a href="${esc(w.link)}" target="_blank" rel="noopener">Open</a>` : "",
-      w.file ? `<a href="${esc(w.file)}" download>Download</a>` : "",
-      S ? `<button class="linkbtn" type="button" data-del="${esc(w.id)}">Delete</button>` : ""
+      safeUrl(w.link) ? `<a class="btn small second" href="${esc(w.link)}" target="_blank" rel="noopener">Open</a>` : "",
+      w.file ? `<a class="btn small second" href="${esc(w.file)}" download>Download</a>` : "",
+      S ? `<button class="linkbtn danger" type="button" data-del="${esc(w.id)}">Delete</button>` : ""
     ].filter(Boolean).join("");
-    return `<li class="work"><div class="thumb">${img}</div><div class="info"><h3>${esc(w.title)}</h3>${meta ? `<p class="meta">${esc(meta)}</p>` : ""}${w.desc ? `<p class="desc">${esc(w.desc)}</p>` : ""}${acts ? `<p class="acts">${acts}</p>` : ""}</div></li>`;
+    return `<li class="card"><div class="thumb">${img}</div><div class="body">${meta ? `<p class="meta">${esc(meta)}</p>` : ""}<h3>${esc(w.title)}</h3>${w.desc ? `<p class="desc">${esc(w.desc)}</p>` : ""}${acts ? `<p class="acts">${acts}</p>` : ""}</div></li>`;
   }).join("");
 }
 $("#chips").addEventListener("click", e => { const b = e.target.closest("[data-c]"); if (b) { filter = b.dataset.c; renderWorks(); } });
@@ -430,6 +523,7 @@ $("#orderForm").addEventListener("submit", e => {
 /* ---------- start ---------- */
 loadWorks();
 if (S) setSignedIn(true);
+
 
 
 </script>
