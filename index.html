@@ -101,6 +101,12 @@
   .discord:hover{background:var(--pad)}
   .discord:hover b{text-decoration:underline;text-underline-offset:5px;text-decoration-thickness:2px}
 
+  .updates{list-style:none;margin:0;padding:0;max-width:44em}
+  .updates li{padding:16px 0;border-top:1px solid var(--line)}
+  .updates li:last-child{border-bottom:1px solid var(--line)}
+  .updates time{display:block;font-size:14px;color:var(--muted);margin-bottom:2px}
+  .updates .text{overflow-wrap:anywhere}
+  .updates .more{font-size:14px;margin-top:4px;display:inline-block}
   #admin{display:none}
   #admin.on{display:block}
 
@@ -132,6 +138,7 @@
   <div class="wrap">
     <a class="brand" href="#top"><img src="clippy.jpg" alt=""><span>Clipover</span></a>
     <a class="link" href="#works">Works</a>
+    <a class="link" href="#updates" id="navUpdates" hidden>Updates</a>
     <a class="link" href="#orders">Orders</a>
     <a class="link" href="#community">Discord</a>
     <button class="linkbtn" id="signInBtn" type="button">Sign in</button>
@@ -157,6 +164,12 @@
       <p class="sub">Things I've made and shipped, newest first.</p>
       <div class="chips" id="chips" role="group" aria-label="Filter works by category"></div>
       <ul class="grid" id="grid"></ul>
+    </section>
+
+    <section id="updates" hidden>
+      <h2>Updates</h2>
+      <p class="sub">Latest posts from my Discord. <a href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener">Join the server</a> for the rest.</p>
+      <ul class="updates" id="updatesList"></ul>
     </section>
 
     <section id="admin">
@@ -524,12 +537,43 @@ $("#orderType").addEventListener("change", e => {
   $("#discordOrder").href = e.target.value === "People Playground mod" ? "https://discord.gg/bNM8W8aAhD" : "https://discord.gg/AFuksKe5aW";
 });
 
+/* ---------- updates from Discord (filled in by a GitHub Action) ---------- */
+function formatUpdate(t){
+  return esc(t)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`)
+    .replace(/\n/g, "<br>");
+}
+async function loadUpdates(){
+  try {
+    const r = await fetch("updates.json?" + Date.now());
+    if (!r.ok) return;
+    const list = ((await r.json()).updates || []).slice(0, 5);
+    if (!list.length) return;
+    $("#updatesList").innerHTML = list.map(u => {
+      const d = new Date(u.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+      const more = safeUrl(u.url) ? `<a class="more" href="${esc(u.url)}" target="_blank" rel="noopener">View in Discord</a>` : "";
+      return `<li><time datetime="${esc(u.date)}">${esc(d)}</time><div class="text">${formatUpdate(u.text)}</div>${more}</li>`;
+    }).join("");
+    $("#updates").hidden = false; $("#navUpdates").hidden = false;
+  } catch {}
+}
+
 /* ---------- start ---------- */
 loadWorks();
+loadUpdates();
 if (S) setSignedIn(true);
 
 
 
+</script>
+
+<!-- Discord chat button from WidgetBot: shows the Clipover Studios #announcements channel -->
+<script src='https://cdn.jsdelivr.net/npm/@widgetbot/crate@3' async defer>
+    new Crate({
+        server: '1496851209544531978', // Clipover Studios
+        channel: '1496851509571354685' // #announcements
+    })
 </script>
 </body>
 </html>
