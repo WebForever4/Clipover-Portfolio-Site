@@ -21,7 +21,8 @@
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.55 var(--font)}
+  body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.55 var(--font);display:flex;flex-direction:column;min-height:100vh}
+  main{flex:1 0 auto;width:100%}
   a{color:var(--blue)}
   :focus-visible{outline:3px solid var(--blue);outline-offset:2px}
   .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
@@ -34,6 +35,8 @@
   .brand img{height:34px;width:auto;mix-blend-mode:multiply;display:block}
   .nav a.link{color:var(--ink);text-decoration:none;font-weight:600;font-size:16px}
   .nav a.link:hover{color:var(--blue);text-decoration:underline;text-underline-offset:5px}
+  .tabs{display:flex;gap:26px}
+  .nav a.link[aria-current="page"]{color:var(--blue);text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:9px}
   .linkbtn{font:600 16px var(--font);color:var(--ink);background:none;border:0;padding:0;cursor:pointer}
   .linkbtn:hover{color:var(--blue);text-decoration:underline;text-underline-offset:5px}
   .linkbtn.danger{color:#a8222f;font-size:15px}
@@ -115,8 +118,6 @@
   [hidden]{display:none!important}
   .addr-row{display:flex;gap:10px;align-items:center}
   .addr-row code{flex:1;min-width:0;font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;background:#f3f4f6;border:1px solid var(--line);padding:10px 12px;overflow-wrap:anywhere;user-select:all}
-  #admin{display:none}
-  #admin.on{display:block}
 
   footer{margin-top:72px;border-top:1px solid var(--line);padding:20px 0 40px;font-size:15px;color:var(--muted)}
 
@@ -130,20 +131,17 @@
 
   @media (max-width:760px){
     body{font-size:16px}
-    .nav .wrap{gap:18px;min-height:56px}
-    .brand span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-    .nav .wrap{gap:10px;padding:0 14px;flex-wrap:nowrap}
-    .nav a.link,.linkbtn{font-size:13px;white-space:nowrap}
-    .brand{margin-right:auto}
-    .brand img{height:28px}
+    .nav .wrap{flex-wrap:wrap;gap:0 14px;min-height:0;padding:0 16px}
+    .brand{order:1;margin-right:auto;padding:8px 0;font-size:18px}
+    .brand img{height:30px}
+    #signInBtn{order:2;font-size:15px}
+    .tabs{order:3;width:100%;overflow-x:auto;gap:18px;padding:2px 0 12px}
+    .nav a.link{font-size:14px;white-space:nowrap}
     .addr-row{flex-direction:column;align-items:stretch}
     .addr-row .btn{align-self:flex-start}
     .offers,.discords{grid-template-columns:1fr}
     .lead-big{font-size:19px}
     section{padding-top:48px}
-  }
-  @media (max-width:380px){
-    .nav .wrap{flex-wrap:wrap;gap:4px 14px;padding-top:6px;padding-bottom:6px}
   }
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
@@ -152,18 +150,21 @@
 
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="#top"><img src="clippy.jpg" alt=""><span>Clipover</span></a>
-    <a class="link" href="#works">Works</a>
-    <a class="link" href="#updates" id="navUpdates" hidden>Updates</a>
-    <a class="link" href="#orders">Orders</a>
-    <a class="link" href="#community">Discord</a>
-    <a class="link" href="#support">Support</a>
+    <a class="brand" href="#works"><img src="clippy.jpg" alt=""><span>Clipover</span></a>
+    <nav class="tabs" aria-label="Pages">
+      <a class="link" href="#works">Works</a>
+      <a class="link" href="#updates" id="navUpdates" hidden>Updates</a>
+      <a class="link" href="#orders">Orders</a>
+      <a class="link" href="#community">Discord</a>
+      <a class="link" href="#support">Support</a>
+      <a class="link" href="#admin" id="navAdmin" hidden>Add a work</a>
+    </nav>
     <button class="linkbtn" id="signInBtn" type="button">Sign in</button>
   </div>
 </header>
 
 <main id="top">
-  <div class="wrap hero">
+  <div class="wrap hero" id="home">
     <h1 class="sr">Clipover</h1>
     <p class="lead-big">I make People Playground mods and Tampermonkey scripts, and I'm building games. Browse what I've made, or order something built for you.</p>
     <div class="stage" id="stage" role="img" aria-label="The name Clipover spelled in tiles. They can be dragged around and stack on each other.">
@@ -183,7 +184,7 @@
       <ul class="grid" id="grid"></ul>
     </section>
 
-    <section id="updates" hidden>
+    <section id="updates">
       <h2>Updates</h2>
       <p class="sub">Latest posts from my Discord. <a href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener">Join the server</a> for the rest.</p>
       <ul class="updates" id="updatesList"></ul>
@@ -305,8 +306,7 @@
         <p class="note" id="convNote" aria-live="polite"></p>
         <p class="err" id="amountErr" role="status"></p>
         <div class="row">
-          <button class="btn" type="button" id="payBrowser">Pay with browser wallet</button>
-          <a class="btn second" id="payTrust" href="#" target="_blank" rel="noopener">Trust Wallet</a>
+          <a class="btn" id="payTrust" href="#" target="_blank" rel="noopener">Trust Wallet</a>
           <a class="btn second" id="payUri" href="#">Other wallet app</a>
         </div>
         <p class="note" id="coinNote"></p>
@@ -380,6 +380,7 @@ let S = session.get();   // { owner, repo, token, branch, login }
   const place = t => { t.el.style.transform = `translate(${t.x}px,${t.y}px) rotate(${t.r}deg)`; };
 
   function build(){
+    if (!stage.clientWidth) return;
     cancelAnimationFrame(raf);
     stage.querySelectorAll(".tile").forEach(t => t.remove());
     W = stage.clientWidth; H = stage.clientHeight - 3;
@@ -459,6 +460,7 @@ let S = session.get();   // { owner, repo, token, branch, login }
     });
   } else { const h = $(".stage-hint"); if (h) h.remove(); }
 
+  window.heroCheck = () => { if (stage.clientWidth && stage.clientWidth !== W) build(); };
   let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(build, 200); });
   (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(build);
 })();
@@ -539,13 +541,14 @@ const byNewest = list => list.slice().sort((a, b) => (b.date || "").localeCompar
 /* ---------- sign in ---------- */
 const dlg = $("#signInDialog");
 function setSignedIn(on){
-  $("#admin").classList.toggle("on", on);
+  $("#navAdmin").hidden = !on;
   $("#signInBtn").textContent = on ? "Signed in" : "Sign in";
   if (on) $("#whoami").textContent = S.login;
   renderWorks();
+  showTab(false);
 }
 $("#signInBtn").addEventListener("click", () => {
-  if (S) { $("#admin").scrollIntoView(); return; }
+  if (S) { location.hash = "admin"; return; }
   const g = guessRepo();
   $("#siOwner").value = g.owner; $("#siRepo").value = g.repo; $("#siToken").value = ""; $("#siErr").textContent = "";
   dlg.showModal();
@@ -563,12 +566,12 @@ $("#signInForm").addEventListener("submit", async e => {
     S = { ...cand, branch: repo.default_branch, login: me.login };
     session.set(S);
     dlg.close(); setSignedIn(true); toast("Signed in as " + me.login);
-    $("#admin").scrollIntoView();
+    location.hash = "admin";
   } catch (ex) {
     err.textContent = ex.status === 401 ? "GitHub rejected that token. Check it and try again." : ex.message;
   } finally { go.disabled = false; }
 });
-$("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); toast("Signed out"); });
+$("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); location.hash = "works"; toast("Signed out"); });
 
 /* ---------- upload ---------- */
 $("#uploadForm").addEventListener("submit", async e => {
@@ -647,16 +650,16 @@ async function loadUpdates(){
       const more = safeUrl(u.url) ? `<a class="more" href="${esc(u.url)}" target="_blank" rel="noopener">View in Discord</a>` : "";
       return `<li><time datetime="${esc(u.date)}">${esc(d)}</time><div class="text">${formatUpdate(u.text)}</div>${more}</li>`;
     }).join("");
-    $("#updates").hidden = false; $("#navUpdates").hidden = false;
+    hasUpdates = true; $("#navUpdates").hidden = false; showTab(false);
   } catch {}
 }
 
 /* ---------- support: pick a coin, convert your currency, pay from a wallet ---------- */
 const COINS = {
-  Ethereum: { sym: "ETH", cg: "ethereum", dec: 18, show: 6, slip: 60,  ph: "0.01",   wallet: "eth",  uri: (a, d, u) => `ethereum:${a}${u ? "?value=" + u : ""}` },
+  Ethereum: { sym: "ETH", cg: "ethereum", dec: 18, show: 6, slip: 60,  ph: "0.01",   uri: (a, d, u) => `ethereum:${a}${u ? "?value=" + u : ""}` },
   Bitcoin:  { sym: "BTC", cg: "bitcoin",  dec: 8,  show: 8, slip: 0,   ph: "0.0005", uri: (a, d) => `bitcoin:${a}${d ? "?amount=" + d : ""}` },
   Solana:   { sym: "SOL", cg: "solana",   dec: 9,  show: 5, slip: 501, ph: "0.1",    uri: (a, d) => `solana:${a}${d ? "?amount=" + d : ""}` },
-  Tron:     { sym: "TRX", cg: "tron",     dec: 6,  show: 2, slip: 195, ph: "50",     wallet: "tron", uri: null },
+  Tron:     { sym: "TRX", cg: "tron",     dec: 6,  show: 2, slip: 195, ph: "50",     uri: null },
   Stellar:  { sym: "XLM", cg: "stellar",  dec: 7,  show: 2, slip: 148, ph: "25",     uri: (a, d) => `web+stellar:pay?destination=${a}${d ? "&amount=" + d : ""}` }
 };
 
@@ -779,37 +782,10 @@ function refreshPay(){
   try { const r = computeAmount(); amt = r.amt || null; status = r.status || ""; } catch (e) { err = e.message; }
   $("#convNote").textContent = status;
   $("#amountErr").textContent = err;
-  $("#payBrowser").hidden = !c.wallet;
   $("#payTrust").href = `https://link.trustwallet.com/send?asset=c${c.slip}&address=${addr}${amt ? "&amount=" + amt.text : ""}`;
   const uri = $("#payUri");
   uri.hidden = !c.uri;
   if (c.uri) uri.href = c.uri(addr, amt && amt.text, amt && amt.atomic.toString()); else uri.removeAttribute("href");
-}
-
-async function payFromBrowser(){
-  const { addr, c } = currentCoin();
-  try {
-    if (unit === "FIAT" && $("#payAmount").value.trim()) await loadRates(fiat, true);   // use a fresh price
-    const amt = computeAmount().amt;
-    if (!amt) { toast("Enter an amount first"); $("#payAmount").focus(); return; }
-    if (c.wallet === "eth") {
-      const p = window.ethereum;
-      if (!p) { toast("No Ethereum wallet found in this browser. Try Trust Wallet or copy the address."); return; }
-      const accounts = await p.request({ method: "eth_requestAccounts" });
-      if ((await p.request({ method: "eth_chainId" })) !== "0x1") {
-        await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1" }] });
-      }
-      await p.request({ method: "eth_sendTransaction", params: [{ from: accounts[0], to: addr, value: "0x" + amt.atomic.toString(16) }] });
-    } else if (c.wallet === "tron") {
-      if (!window.tronLink || !window.tronWeb) { toast("No TronLink wallet found in this browser. Try Trust Wallet or copy the address."); return; }
-      await window.tronLink.request({ method: "tron_requestAccounts" });
-      const res = await window.tronWeb.trx.sendTransaction(addr, Number(amt.atomic));
-      if (res && res.result === false) throw new Error("The transaction was not sent");
-    }
-    toast("Thank you! The payment was sent from your wallet.");
-  } catch (e) {
-    toast(e && e.code === 4001 ? "Payment cancelled" : (e && e.message) || "Payment failed");
-  }
 }
 
 $("#geoNote").textContent = country
@@ -821,7 +797,6 @@ $("#payUnit").addEventListener("change", e => {
   buildUnits(); refreshPay();
 });
 $("#payAmount").addEventListener("input", refreshPay);
-$("#payBrowser").addEventListener("click", payFromBrowser);
 buildUnits();
 refreshPay();
 
@@ -839,10 +814,25 @@ document.addEventListener("click", async e => {
   setTimeout(() => { b.textContent = old; }, 1800);
 });
 
+/* ---------- tabs: one page at a time, chosen by the link (#works, #orders ...) ---------- */
+const TABS = ["works", "updates", "orders", "community", "support", "admin"];
+let hasUpdates = false;
+const tabAllowed = id => TABS.includes(id) && (id !== "updates" || hasUpdates) && (id !== "admin" || !!S);
+function showTab(scroll){
+  let id = location.hash.slice(1);
+  if (!tabAllowed(id)) id = "works";
+  for (const t of TABS) $("#" + t).hidden = t !== id;
+  $("#home").hidden = id !== "works";
+  document.querySelectorAll(".tabs a").forEach(a => a.getAttribute("href") === "#" + id ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  if (scroll) window.scrollTo(0, 0);
+  if (id === "works" && window.heroCheck) window.heroCheck();
+}
+addEventListener("hashchange", () => showTab(true));
+
 /* ---------- start ---------- */
 loadWorks();
 loadUpdates();
-if (S) setSignedIn(true);
+if (S) setSignedIn(true); else showTab(false);
 
 
 
