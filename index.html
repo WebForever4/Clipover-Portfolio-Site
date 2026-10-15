@@ -52,9 +52,7 @@
   .stage{position:relative;height:clamp(250px,36vw,340px);background:var(--pad);border:1px solid var(--line);overflow:hidden;touch-action:none}
   .stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--ink)}
   .tile{position:absolute;left:0;top:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-stretch:125%;line-height:1;user-select:none;-webkit-user-select:none;cursor:grab;border:1px solid var(--ink);border-radius:2px;touch-action:none}
-  .tile.clip{border:0;background:none;border-radius:0;mix-blend-mode:multiply}
-  .tile.clip img{width:100%;height:100%;display:block;pointer-events:none}
-  .tile.drag{cursor:grabbing}
+    .tile.drag{cursor:grabbing}
   .stage-hint{position:absolute;right:12px;top:10px;font-size:14px;color:var(--muted);pointer-events:none}
   .hero .row{margin-top:22px}
 
@@ -91,6 +89,7 @@
   textarea{min-height:120px;resize:vertical}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
   .note{font-size:14px;color:var(--muted)}
+  .req{color:#a8222f}
   .err{min-height:1.3em;color:#a8222f;font-weight:600;font-size:14px}
 
   /* discord */
@@ -149,8 +148,8 @@
   <div class="wrap hero">
     <h1 class="sr">Clipover</h1>
     <p class="lead-big">I make People Playground mods and Tampermonkey scripts, and I'm building games. Browse what I've made, or order something built for you.</p>
-    <div class="stage" id="stage" role="img" aria-label="The name Clipover spelled in tiles, with the Clipover paperclip logo. They can be dragged around.">
-      <span class="stage-hint">Drag them around</span>
+    <div class="stage" id="stage" role="img" aria-label="The name Clipover spelled in tiles. They can be dragged around and stack on each other.">
+      <span class="stage-hint">Drag and stack them</span>
     </div>
     <div class="row">
       <a class="btn" href="#orders">Order a mod or script</a>
@@ -229,11 +228,17 @@
             <option>Tampermonkey script</option>
           </select>
         </label>
-        <label>Describe it
-          <textarea name="details" id="orderDetails" required placeholder="What should it do? Add site addresses, examples or anything that helps."></textarea>
+        <label><span><span id="lblDetails">What mod or addition are you requesting?</span> <span class="req" aria-hidden="true">*</span></span>
+          <textarea name="details" id="orderDetails" required placeholder="A God of War mod with Kratos and others"></textarea>
+        </label>
+        <label><span>Max price <span class="req" aria-hidden="true">*</span></span>
+          <input name="price" id="orderPrice" required placeholder="$25">
+        </label>
+        <label>Any problems? (optional)
+          <input name="problems" id="orderProblems" placeholder="e.g. a mod I tried before crashed on the latest game version">
         </label>
         <label>How should I reach you? A Discord name is best.
-          <input name="contact" id="orderContact">
+          <input name="contact" id="orderContact" placeholder="e.g. yourname">
         </label>
         <div class="row">
           <button class="btn" type="submit" id="issueBtn">Send order on GitHub</button>
@@ -309,7 +314,7 @@ const session = {
 };
 let S = session.get();   // { owner, repo, token, branch, login }
 
-/* ---------- hero: draggable name tiles and Clippy ---------- */
+/* ---------- hero: draggable name tiles that collide ---------- */
 (function hero(){
   const stage = $("#stage");
   const word = "Clipover".split("");
@@ -319,41 +324,65 @@ let S = session.get();   // { owner, repo, token, branch, login }
   const place = t => { t.el.style.transform = `translate(${t.x}px,${t.y}px) rotate(${t.r}deg)`; };
 
   function build(){
+    cancelAnimationFrame(raf);
     stage.querySelectorAll(".tile").forEach(t => t.remove());
     W = stage.clientWidth; H = stage.clientHeight - 3;
-    const gap = W < 520 ? 4 : 6, n = word.length, clipR = W < 520 ? 1.3 : 1.7;
-    const size = Math.max(26, Math.min(104, (W - 20 - gap * n) / (n + clipR)));
-    const clipW = size * clipR, clipH = clipW * 168 / 300;
-    let x = (W - (clipW + n * size + n * gap)) / 2;
-    const items = [{ clip: true, w: clipW, h: clipH }, ...word.map((ch, i) => ({ ch, w: size, h: size, fill: fills[i] }))];
-    tiles = items.map((it, i) => {
+    const n = word.length, gap = W < 520 ? 4 : 8;
+    const size = Math.max(26, Math.min(120, (W - 24 - gap * (n - 1)) / n));
+    let x = (W - (n * size + gap * (n - 1))) / 2;
+    tiles = word.map((ch, i) => {
       const el = document.createElement("div");
-      el.className = "tile" + (it.clip ? " clip" : "");
-      el.style.width = it.w + "px"; el.style.height = it.h + "px";
-      if (it.clip) { const im = document.createElement("img"); im.src = "clippy.jpg"; im.alt = ""; im.draggable = false; el.appendChild(im); }
-      else { el.textContent = it.ch; el.style.fontSize = size * 0.62 + "px"; el.style.background = it.fill[0]; el.style.color = it.fill[1]; }
+      el.className = "tile"; el.textContent = ch;
+      el.style.width = el.style.height = size + "px";
+      el.style.fontSize = size * 0.62 + "px";
+      el.style.background = fills[i][0]; el.style.color = fills[i][1];
       stage.appendChild(el);
-      const t = { el, w: it.w, h: it.h, x, y: reduce ? H - it.h : -it.h - i * 70, vx: 0, vy: 0, r: reduce ? 0 : (Math.random() - .5) * 30, vr: (Math.random() - .5) * 4, drag: false };
-      x += it.w + gap; place(t); return t;
+      const t = { el, w: size, h: size, x, y: reduce ? H - size : -size - i * 80, vx: reduce ? 0 : (Math.random() - .5) * 2, vy: 0, r: reduce ? 0 : (Math.random() - .5) * 24, vr: reduce ? 0 : (Math.random() - .5) * 3, drag: false };
+      x += size + gap; place(t); return t;
     });
-    if (!reduce) loop();
+    if (!reduce) raf = requestAnimationFrame(run);
+  }
+
+  /* keep a tile inside the stage; bounce only on the first pass of a frame */
+  function bounds(t, bounce){
+    if (t.y > H - t.h) {
+      t.y = H - t.h;
+      if (t.vy > 0) t.vy = bounce && t.vy > 2 ? -t.vy * 0.4 : 0;
+      if (bounce) { t.vx *= 0.88; t.vr *= 0.6; t.r *= 0.9; }
+    }
+    if (t.x < 0) { t.x = 0; if (t.vx < 0) t.vx = bounce ? -t.vx * 0.5 : 0; }
+    if (t.x > W - t.w) { t.x = W - t.w; if (t.vx > 0) t.vx = bounce ? -t.vx * 0.5 : 0; }
+  }
+
+  /* square-on-square collision: push apart along the shallowest overlap and swap some speed */
+  function collide(a, b){
+    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+    const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    if (ox <= 0 || oy <= 0) return;
+    const wa = a.drag ? 0 : 1, wb = b.drag ? 0 : 1, ws = wa + wb;
+    if (!ws) return;
+    const horiz = ox < oy, k = horiz ? "x" : "y", v = horiz ? "vx" : "vy", pen = horiz ? ox : oy;
+    const sign = (horiz ? a.x + a.w / 2 < b.x + b.w / 2 : a.y + a.h / 2 < b.y + b.h / 2) ? -1 : 1;
+    a[k] += sign * pen * wa / ws; b[k] -= sign * pen * wb / ws;
+    const rel = (a[v] - b[v]) * sign;
+    if (rel < 0) { const j = -1.2 * rel; a[v] += sign * j * wa / ws; b[v] -= sign * j * wb / ws; }
+    if (!horiz) { a.vx *= 0.95; b.vx *= 0.95; }
+    for (const t of [a, b]) { t.r *= 0.85; t.vr *= 0.7; }
   }
 
   function step(){
-    let moving = false;
     for (const t of tiles) {
-      if (t.drag) { moving = true; continue; }
-      t.vy += 0.6; t.x += t.vx; t.y += t.vy; t.r += t.vr;
-      if (t.y > H - t.h) { t.y = H - t.h; t.vy *= -0.45; t.vx *= 0.88; t.vr *= 0.8; if (Math.abs(t.vy) < 1.2) t.vy = 0; }
-      if (t.x < 0) { t.x = 0; t.vx *= -0.5; }
-      if (t.x > W - t.w) { t.x = W - t.w; t.vx *= -0.5; }
-      if (t.y >= H - t.h - 0.5 && Math.abs(t.vx) < 0.15 && t.vy === 0) { t.vx = 0; t.r *= 0.85; if (Math.abs(t.r) < 0.3) t.r = 0; else moving = true; }
-      else moving = true;
-      place(t);
+      if (t.drag) { t.vx *= 0.6; t.vy *= 0.6; continue; }
+      t.vy += 0.6; t.vx *= 0.995; t.x += t.vx; t.y += t.vy; t.r += t.vr; t.vr *= 0.99;
+      bounds(t, true);
     }
-    return moving;
+    for (let k = 0; k < 4; k++) {
+      for (let i = 0; i < tiles.length; i++) for (let j = i + 1; j < tiles.length; j++) collide(tiles[i], tiles[j]);
+      for (const t of tiles) if (!t.drag) bounds(t, false);
+    }
+    for (const t of tiles) { if (Math.abs(t.vx) < 0.05) t.vx = 0; place(t); }
   }
-  function loop(){ cancelAnimationFrame(raf); const run = () => { if (step()) raf = requestAnimationFrame(run); }; raf = requestAnimationFrame(run); }
+  function run(){ step(); raf = requestAnimationFrame(run); }
 
   if (!reduce) {
     stage.addEventListener("pointerdown", e => {
@@ -363,14 +392,13 @@ let S = session.get();   // { owner, repo, token, branch, login }
       t.drag = true; el.classList.add("drag"); el.setPointerCapture(e.pointerId);
       t.ox = e.clientX - rect.left - t.x; t.oy = e.clientY - rect.top - t.y;
       t.lx = t.x; t.ly = t.y; t.vx = t.vy = 0; t.vr = 0;
-      el.style.zIndex = 5; loop();
+      el.style.zIndex = 5;
       const move = ev => {
         const nx = ev.clientX - rect.left - t.ox, ny = ev.clientY - rect.top - t.oy;
         t.vx = nx - t.lx; t.vy = ny - t.ly;
         t.lx = t.x = Math.max(0, Math.min(W - t.w, nx)); t.ly = t.y = Math.max(-40, Math.min(H - t.h, ny));
-        place(t);
       };
-      const up = () => { t.drag = false; el.classList.remove("drag"); t.vr = t.vx * 0.8; el.style.zIndex = ""; el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); loop(); };
+      const up = () => { t.drag = false; el.classList.remove("drag"); t.vr = t.vx * 0.8; el.style.zIndex = ""; el.removeEventListener("pointermove", move); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up); };
       el.addEventListener("pointermove", move); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
     });
   } else { const h = $(".stage-hint"); if (h) h.remove(); }
@@ -526,15 +554,24 @@ $("#grid").addEventListener("click", async e => {
 $("#orderForm").addEventListener("submit", e => {
   e.preventDefault();
   const g = guessRepo(), o = S ? S.owner : g.owner, r = S ? S.repo : g.repo;
-  const type = $("#orderType").value, details = $("#orderDetails").value.trim(), contact = $("#orderContact").value.trim();
+  const type = $("#orderType").value, details = $("#orderDetails").value.trim(), price = $("#orderPrice").value.trim(), problems = $("#orderProblems").value.trim(), contact = $("#orderContact").value.trim();
   if (!o || !r) { toast("GitHub orders work once the site is live on GitHub Pages. Use the Discord button for now."); return; }
-  const body = `**Type:** ${type}\n**Contact:** ${contact || "(not given)"}\n\n${details}`;
+  const body = `**Type:** ${type}\n**Max price:** ${price}\n**Contact:** ${contact || "(not given)"}\n**Any problems:** ${problems || "none"}\n\n**Request:**\n${details}`;
   const url = `https://github.com/${o}/${r}/issues/new?labels=order&title=${encodeURIComponent("Order: " + type)}&body=${encodeURIComponent(body)}`;
   window.open(url, "_blank", "noopener");
 });
 
+const ORDER_HINTS = {
+  "People Playground mod": { label: "What mod or addition are you requesting?", details: "A God of War mod with Kratos and others", price: "$25", problems: "e.g. a mod I tried before crashed on the latest game version", discord: "https://discord.gg/bNM8W8aAhD" },
+  "Tampermonkey script": { label: "What script are you requesting?", details: "A script that skips the intro video on example.com", price: "$10", problems: "e.g. the site changes its layout often", discord: "https://discord.gg/AFuksKe5aW" }
+};
 $("#orderType").addEventListener("change", e => {
-  $("#discordOrder").href = e.target.value === "People Playground mod" ? "https://discord.gg/bNM8W8aAhD" : "https://discord.gg/AFuksKe5aW";
+  const h = ORDER_HINTS[e.target.value];
+  $("#lblDetails").textContent = h.label;
+  $("#orderDetails").placeholder = h.details;
+  $("#orderPrice").placeholder = h.price;
+  $("#orderProblems").placeholder = h.problems;
+  $("#discordOrder").href = h.discord;
 });
 
 /* ---------- updates from Discord (filled in by a GitHub Action) ---------- */
