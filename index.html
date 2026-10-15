@@ -109,6 +109,10 @@
   .updates time{display:block;font-size:14px;color:var(--muted);margin-bottom:2px}
   .updates .text{overflow-wrap:anywhere}
   .updates .more{font-size:14px;margin-top:4px;display:inline-block}
+  .game{max-width:900px;margin-bottom:20px}
+  .game .sub{margin-bottom:14px}
+  .gamebox{background:#031421;border:1px solid var(--ink);margin-bottom:14px}
+  .gamebox iframe{display:block;width:100%;height:clamp(380px,72vh,680px);border:0}
   .pay{max-width:560px;display:grid;gap:10px}
   .pay h3{margin-top:10px;font-size:20px}
   .pay .err{min-height:0}
@@ -153,6 +157,7 @@
     <a class="brand" href="#works"><img src="clippy.jpg" alt=""><span>Clipover</span></a>
     <nav class="tabs" aria-label="Pages">
       <a class="link" href="#works">Works</a>
+      <a class="link" href="#games">Games</a>
       <a class="link" href="#updates" id="navUpdates" hidden>Updates</a>
       <a class="link" href="#orders">Orders</a>
       <a class="link" href="#community">Discord</a>
@@ -182,6 +187,22 @@
       <p class="sub">Things I've made and shipped, newest first.</p>
       <div class="chips" id="chips" role="group" aria-label="Filter works by category"></div>
       <ul class="grid" id="grid"></ul>
+    </section>
+
+    <section id="games">
+      <h2>Games</h2>
+      <p class="sub">Games I've made. They run right here in your browser.</p>
+      <div class="game">
+        <h3>Tiny Shipwreck Salvage</h3>
+        <p class="sub">Dive down, haul up salvage and junk, sell it for coins and spend them on upgrades to reach deeper. Swim with WASD, the arrow keys or by dragging, and hold Shift to boost.</p>
+        <div class="gamebox"><iframe id="gameFrame" title="Tiny Shipwreck Salvage" allow="fullscreen; autoplay"></iframe></div>
+        <div class="row">
+          <button class="btn" type="button" id="gameFull">Play full screen</button>
+          <a class="btn second" href="games/tiny-shipwreck-salvage.html" target="_blank" rel="noopener">Open in a new tab</a>
+        </div>
+        <p class="note">Click the game once so it gets your keys. Your progress is saved in this browser.</p>
+      </div>
+      <p class="sub">More games, and the people who play them, are on the <a href="https://discord.gg/RkRf7UCCRY" target="_blank" rel="noopener">Clipover Games Discord</a>.</p>
     </section>
 
     <section id="updates">
@@ -815,7 +836,7 @@ document.addEventListener("click", async e => {
 });
 
 /* ---------- tabs: one page at a time, chosen by the link (#works, #orders ...) ---------- */
-const TABS = ["works", "updates", "orders", "community", "support", "admin"];
+const TABS = ["works", "games", "updates", "orders", "community", "support", "admin"];
 let hasUpdates = false;
 const tabAllowed = id => TABS.includes(id) && (id !== "updates" || hasUpdates) && (id !== "admin" || !!S);
 function showTab(scroll){
@@ -824,10 +845,18 @@ function showTab(scroll){
   for (const t of TABS) $("#" + t).hidden = t !== id;
   $("#home").hidden = id !== "works";
   document.querySelectorAll(".tabs a").forEach(a => a.getAttribute("href") === "#" + id ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  const gf = $("#gameFrame");
+  if (id === "games") { if (gf.dataset.on !== "1") { gf.src = "games/tiny-shipwreck-salvage.html"; gf.dataset.on = "1"; } }
+  else if (gf.dataset.on === "1") { gf.src = "about:blank"; gf.dataset.on = "0"; }   // stops the game and its sound
   if (scroll) window.scrollTo(0, 0);
   if (id === "works" && window.heroCheck) window.heroCheck();
 }
 addEventListener("hashchange", () => showTab(true));
+
+$("#gameFull").addEventListener("click", () => {
+  const f = $("#gameFrame"), go = f.requestFullscreen || f.webkitRequestFullscreen;
+  if (go) go.call(f); else window.open("games/tiny-shipwreck-salvage.html", "_blank", "noopener");
+});
 
 /* ---------- start ---------- */
 loadWorks();
