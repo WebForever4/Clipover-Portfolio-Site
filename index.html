@@ -106,6 +106,15 @@
   .updates time{display:block;font-size:14px;color:var(--muted);margin-bottom:2px}
   .updates .text{overflow-wrap:anywhere}
   .updates .more{font-size:14px;margin-top:4px;display:inline-block}
+  .pay{max-width:560px;display:grid;gap:10px}
+  .pay h3{margin-top:10px;font-size:20px}
+  .pay .err{min-height:0}
+  .pay .note{margin:0}
+  .amount-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:10px}
+  .pay .row .btn{padding:10px 14px}
+  [hidden]{display:none!important}
+  .addr-row{display:flex;gap:10px;align-items:center}
+  .addr-row code{flex:1;min-width:0;font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;background:#f3f4f6;border:1px solid var(--line);padding:10px 12px;overflow-wrap:anywhere;user-select:all}
   #admin{display:none}
   #admin.on{display:block}
 
@@ -123,10 +132,18 @@
     body{font-size:16px}
     .nav .wrap{gap:18px;min-height:56px}
     .brand span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-    .nav a.link,.linkbtn{font-size:15px}
+    .nav .wrap{gap:10px;padding:0 14px;flex-wrap:nowrap}
+    .nav a.link,.linkbtn{font-size:13px;white-space:nowrap}
+    .brand{margin-right:auto}
+    .brand img{height:28px}
+    .addr-row{flex-direction:column;align-items:stretch}
+    .addr-row .btn{align-self:flex-start}
     .offers,.discords{grid-template-columns:1fr}
     .lead-big{font-size:19px}
     section{padding-top:48px}
+  }
+  @media (max-width:380px){
+    .nav .wrap{flex-wrap:wrap;gap:4px 14px;padding-top:6px;padding-bottom:6px}
   }
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
@@ -140,6 +157,7 @@
     <a class="link" href="#updates" id="navUpdates" hidden>Updates</a>
     <a class="link" href="#orders">Orders</a>
     <a class="link" href="#community">Discord</a>
+    <a class="link" href="#support">Support</a>
     <button class="linkbtn" id="signInBtn" type="button">Sign in</button>
   </div>
 </header>
@@ -235,7 +253,7 @@
           <input name="price" id="orderPrice" required placeholder="$25">
         </label>
         <label>Any problems? (optional)
-          <input name="problems" id="orderProblems" placeholder="e.g. a mod I tried before crashed on the latest game version">
+          <input name="problems" id="orderProblems">
         </label>
         <label>How should I reach you? A Discord name is best.
           <input name="contact" id="orderContact" placeholder="e.g. yourname">
@@ -254,6 +272,44 @@
       <div class="discords">
         <a class="discord" href="https://discord.gg/AFuksKe5aW" target="_blank" rel="noopener"><b>Clipover Studios</b><span>Orders, mods and scripts.</span></a>
         <a class="discord" href="https://discord.gg/RkRf7UCCRY" target="_blank" rel="noopener"><b>Clipover Games</b><span>Games and the people who play them.</span></a>
+      </div>
+    </section>
+
+    <section id="support">
+      <h2>Support me</h2>
+      <p class="sub">If you like my mods and scripts, you can chip in with crypto. It's never required.</p>
+      <div class="pay">
+        <label>Choose a coin
+          <select id="coinSelect">
+          <option value="0x514Add1Ca00020ee6f5263edFEE6fD4a95ca3C1E">Ethereum</option>
+          <option value="bc1qmt23jzruwjxqgve44r3ejz5vujl8s2yqghqxj4">Bitcoin</option>
+          <option value="5nixxURMKaftcM9EfpPBcQWRyFHwdF6TRXKiD5ahncuL">Solana</option>
+          <option value="TZEakDaSC1QYpV1EwyLNMVwQy82JoEsK6w">Tron</option>
+          <option value="GDXFEPGX5FQRFBSK5OG4Z6URWTTIFBTHJDGUVWOID733S7VJFSXRXCRZ">Stellar</option>
+          </select>
+        </label>
+        <h3 id="coinName">Ethereum</h3>
+        <div class="addr-row">
+          <code id="coinAddr">0x514Add1Ca00020ee6f5263edFEE6fD4a95ca3C1E</code>
+          <button class="btn" type="button" id="coinCopy" data-copy="0x514Add1Ca00020ee6f5263edFEE6fD4a95ca3C1E" data-name="Ethereum">Copy address</button>
+        </div>
+        <div class="amount-row">
+          <label><span>Amount (optional)</span>
+            <input id="payAmount" inputmode="decimal" autocomplete="off" placeholder="10">
+          </label>
+          <label><span>Currency</span>
+            <select id="payUnit"></select>
+          </label>
+        </div>
+        <p class="note" id="geoNote"></p>
+        <p class="note" id="convNote" aria-live="polite"></p>
+        <p class="err" id="amountErr" role="status"></p>
+        <div class="row">
+          <button class="btn" type="button" id="payBrowser">Pay with browser wallet</button>
+          <a class="btn second" id="payTrust" href="#" target="_blank" rel="noopener">Trust Wallet</a>
+          <a class="btn second" id="payUri" href="#">Other wallet app</a>
+        </div>
+        <p class="note" id="coinNote"></p>
       </div>
     </section>
   </div>
@@ -562,15 +618,14 @@ $("#orderForm").addEventListener("submit", e => {
 });
 
 const ORDER_HINTS = {
-  "People Playground mod": { label: "What mod or addition are you requesting?", details: "A God of War mod with Kratos and others", price: "$25", problems: "e.g. a mod I tried before crashed on the latest game version", discord: "https://discord.gg/bNM8W8aAhD" },
-  "Tampermonkey script": { label: "What script are you requesting?", details: "A script that skips the intro video on example.com", price: "$10", problems: "e.g. the site changes its layout often", discord: "https://discord.gg/AFuksKe5aW" }
+  "People Playground mod": { label: "What mod or addition are you requesting?", details: "A God of War mod with Kratos and others", price: "$25", discord: "https://discord.gg/bNM8W8aAhD" },
+  "Tampermonkey script": { label: "What script are you requesting?", details: "A script that skips the intro video on example.com", price: "$10", discord: "https://discord.gg/AFuksKe5aW" }
 };
 $("#orderType").addEventListener("change", e => {
   const h = ORDER_HINTS[e.target.value];
   $("#lblDetails").textContent = h.label;
   $("#orderDetails").placeholder = h.details;
   $("#orderPrice").placeholder = h.price;
-  $("#orderProblems").placeholder = h.problems;
   $("#discordOrder").href = h.discord;
 });
 
@@ -595,6 +650,194 @@ async function loadUpdates(){
     $("#updates").hidden = false; $("#navUpdates").hidden = false;
   } catch {}
 }
+
+/* ---------- support: pick a coin, convert your currency, pay from a wallet ---------- */
+const COINS = {
+  Ethereum: { sym: "ETH", cg: "ethereum", dec: 18, show: 6, slip: 60,  ph: "0.01",   wallet: "eth",  uri: (a, d, u) => `ethereum:${a}${u ? "?value=" + u : ""}` },
+  Bitcoin:  { sym: "BTC", cg: "bitcoin",  dec: 8,  show: 8, slip: 0,   ph: "0.0005", uri: (a, d) => `bitcoin:${a}${d ? "?amount=" + d : ""}` },
+  Solana:   { sym: "SOL", cg: "solana",   dec: 9,  show: 5, slip: 501, ph: "0.1",    uri: (a, d) => `solana:${a}${d ? "?amount=" + d : ""}` },
+  Tron:     { sym: "TRX", cg: "tron",     dec: 6,  show: 2, slip: 195, ph: "50",     wallet: "tron", uri: null },
+  Stellar:  { sym: "XLM", cg: "stellar",  dec: 7,  show: 2, slip: 148, ph: "25",     uri: (a, d) => `web+stellar:pay?destination=${a}${d ? "&amount=" + d : ""}` }
+};
+
+/* Where are you? Your time zone is the best clue (it follows where you actually are), then your browser language. Nothing is sent anywhere. */
+const COUNTRY_CUR = Object.fromEntries("AU:AUD NZ:NZD US:USD CA:CAD GB:GBP IE:EUR FR:EUR DE:EUR ES:EUR IT:EUR NL:EUR BE:EUR AT:EUR PT:EUR FI:EUR GR:EUR SK:EUR SI:EUR EE:EUR LV:EUR LT:EUR LU:EUR MT:EUR CY:EUR HR:EUR SE:SEK NO:NOK DK:DKK PL:PLN CZ:CZK HU:HUF RO:RON CH:CHF TR:TRY JP:JPY KR:KRW CN:CNY HK:HKD TW:TWD SG:SGD IN:INR ID:IDR MY:MYR PH:PHP TH:THB VN:VND AE:AED SA:SAR IL:ILS ZA:ZAR NG:NGN EG:EGP KE:KES BR:BRL MX:MXN AR:ARS CL:CLP CO:COP PE:PEN UA:UAH RU:RUB PK:PKR BD:BDT".split(" ").map(x => x.split(":")));
+const ZONE_COUNTRY = {"Pacific/Auckland":"NZ","Europe/London":"GB","Europe/Dublin":"IE","Europe/Paris":"FR","Europe/Berlin":"DE","Europe/Madrid":"ES","Europe/Rome":"IT","Europe/Amsterdam":"NL","Europe/Brussels":"BE","Europe/Vienna":"AT","Europe/Lisbon":"PT","Europe/Helsinki":"FI","Europe/Athens":"GR","Europe/Stockholm":"SE","Europe/Oslo":"NO","Europe/Copenhagen":"DK","Europe/Warsaw":"PL","Europe/Prague":"CZ","Europe/Budapest":"HU","Europe/Bucharest":"RO","Europe/Zurich":"CH","Europe/Istanbul":"TR","Europe/Kyiv":"UA","Europe/Kiev":"UA","Europe/Moscow":"RU","Asia/Tokyo":"JP","Asia/Seoul":"KR","Asia/Shanghai":"CN","Asia/Hong_Kong":"HK","Asia/Taipei":"TW","Asia/Singapore":"SG","Asia/Kolkata":"IN","Asia/Calcutta":"IN","Asia/Jakarta":"ID","Asia/Kuala_Lumpur":"MY","Asia/Manila":"PH","Asia/Bangkok":"TH","Asia/Ho_Chi_Minh":"VN","Asia/Dubai":"AE","Asia/Riyadh":"SA","Asia/Jerusalem":"IL","Asia/Karachi":"PK","Asia/Dhaka":"BD","Africa/Johannesburg":"ZA","Africa/Lagos":"NG","Africa/Cairo":"EG","Africa/Nairobi":"KE","America/New_York":"US","America/Chicago":"US","America/Denver":"US","America/Los_Angeles":"US","America/Phoenix":"US","America/Anchorage":"US","Pacific/Honolulu":"US","America/Toronto":"CA","America/Vancouver":"CA","America/Edmonton":"CA","America/Winnipeg":"CA","America/Halifax":"CA","America/Mexico_City":"MX","America/Sao_Paulo":"BR","America/Bogota":"CO","America/Lima":"PE","America/Santiago":"CL"};
+function detectCountry(){
+  let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch {}
+  if (ZONE_COUNTRY[tz]) return ZONE_COUNTRY[tz];
+  if (tz.startsWith("Australia/")) return "AU";
+  if (tz.startsWith("America/Argentina/")) return "AR";
+  for (const l of (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language])) {
+    const m = /^[a-z]{2,3}(?:-[A-Za-z]{4})?-([A-Za-z]{2})$/.exec(l || "");
+    if (m && COUNTRY_CUR[m[1].toUpperCase()]) return m[1].toUpperCase();
+  }
+  return null;
+}
+const ALL_CURRENCIES = [...new Set(["USD", "EUR", "GBP", "AUD", "CAD", "NZD", ...Object.values(COUNTRY_CUR)])].sort();
+const country = detectCountry();
+let fiat = (country && COUNTRY_CUR[country]) || "USD";
+let unit = "FIAT";   // "FIAT" = amount is in the chosen currency, "COIN" = amount is already in crypto
+const displayName = (type, code) => { try { return new Intl.DisplayNames(["en"], { type }).of(code); } catch { return ""; } };
+const money = (n, cur) => { try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur, currencyDisplay: "code", maximumFractionDigits: n < 1 ? 6 : 2 }).format(n); } catch { return n.toFixed(2) + " " + cur; } };
+
+/* Live prices: Coinbase first, CoinGecko if that fails. Each entry holds "crypto per 1 unit of currency". */
+const RATES = {};
+async function getJson(url){
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), 8000);
+  try { const r = await fetch(url, { signal: ac.signal }); if (!r.ok) throw new Error("bad response"); return await r.json(); }
+  finally { clearTimeout(t); }
+}
+async function ratesFromCoinbase(cur){
+  const j = await getJson("https://api.coinbase.com/v2/exchange-rates?currency=" + encodeURIComponent(cur));
+  const out = {};
+  for (const c of Object.values(COINS)) { const v = Number(j.data.rates[c.sym]); if (v > 0) out[c.sym] = v; }
+  if (!Object.keys(out).length) throw new Error("no rates");
+  return out;
+}
+async function ratesFromCoinGecko(cur){
+  const k = cur.toLowerCase();
+  const j = await getJson(`https://api.coingecko.com/api/v3/simple/price?ids=${Object.values(COINS).map(c => c.cg).join(",")}&vs_currencies=${k}`);
+  const out = {};
+  for (const c of Object.values(COINS)) { const p = Number(j[c.cg] && j[c.cg][k]); if (p > 0) out[c.sym] = 1 / p; }
+  if (!Object.keys(out).length) throw new Error("no rates");
+  return out;
+}
+function loadRates(cur, force){
+  const e = RATES[cur], age = e ? Date.now() - e.t : Infinity;
+  if (e && e.state === "loading") return e.promise;
+  if (e && e.state === "ok" && age < (force ? 60000 : 300000)) return Promise.resolve(e);
+  if (e && e.state === "fail" && age < 60000) return Promise.resolve(e);
+  const entry = RATES[cur] = { state: "loading", t: Date.now(), rates: {}, source: "" };
+  entry.promise = (async () => {
+    let got = null;
+    try { got = { rates: await ratesFromCoinbase(cur), source: "Coinbase" }; }
+    catch { try { got = { rates: await ratesFromCoinGecko(cur), source: "CoinGecko" }; } catch {} }
+    entry.t = Date.now();
+    if (got) { entry.state = "ok"; entry.rates = got.rates; entry.source = got.source; } else entry.state = "fail";
+    refreshPay();
+    return entry;
+  })();
+  return entry.promise;
+}
+
+/* "0.01" becomes { text: "0.01", atomic: 10000000000000000n }. Blank means no amount. */
+function parseAmount(str, dec){
+  str = str.trim().replace(",", ".");
+  if (!str) return null;
+  if (!/^\d+(\.\d+)?$/.test(str)) throw new Error("Enter the amount as a number, like 0.01");
+  const [i, f = ""] = str.split(".");
+  if (f.length > dec) throw new Error("That has too many decimal places for this coin");
+  const atomic = BigInt(i + f.padEnd(dec, "0"));
+  if (atomic <= 0n) throw new Error("The amount has to be more than zero");
+  return { text: f ? i + "." + f : i, atomic };
+}
+function currentCoin(){
+  const sel = $("#coinSelect"), name = sel.selectedOptions[0].textContent;
+  return { name, addr: sel.value, c: COINS[name] };
+}
+
+/* Turns what the visitor typed into a crypto amount. Returns { amt, status }, or throws a message. */
+function computeAmount(){
+  const { c } = currentCoin();
+  const raw = $("#payAmount").value.trim().replace(",", ".");
+  if (!raw) return {};
+  if (unit === "COIN") return { amt: parseAmount(raw, c.dec) };
+  if (!/^\d+(\.\d+)?$/.test(raw)) throw new Error("Enter the amount as a number, like 10");
+  const f = Number(raw);
+  if (!(f > 0)) throw new Error("The amount has to be more than zero");
+  const e = RATES[fiat];
+  if (!e || e.state === "loading") return { status: "Getting the live price..." };
+  const rate = e.rates[c.sym];
+  if (e.state === "fail" || !rate) throw new Error(`Couldn't get a live price for ${c.sym} right now. Choose ${c.sym} as the currency and type the crypto amount instead.`);
+  const txt = (f * rate).toFixed(c.show).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  if (Number(txt) === 0) throw new Error("That's too small to send");
+  return { amt: parseAmount(txt, c.dec), status: `About ${txt} ${c.sym}. Live price from ${e.source}: 1 ${c.sym} is about ${money(1 / rate, fiat)}. Prices move, so the final amount can differ.` };
+}
+
+function buildUnits(){
+  const { c } = currentCoin(), sel = $("#payUnit");
+  const opt = (v, t) => { const o = document.createElement("option"); o.value = v; o.textContent = t; return o; };
+  const label = cur => `${cur} ${displayName("currency", cur)}`.trim();
+  sel.innerHTML = "";
+  sel.append(opt("F:" + fiat, label(fiat)), opt("COIN", c.sym + " (type the crypto amount)"));
+  const g = document.createElement("optgroup"); g.label = "Other currencies";
+  ALL_CURRENCIES.filter(x => x !== fiat).forEach(x => g.append(opt("F:" + x, label(x))));
+  sel.append(g);
+  sel.value = unit === "COIN" ? "COIN" : "F:" + fiat;
+}
+
+function refreshPay(){
+  const { name, addr, c } = currentCoin();
+  $("#coinName").textContent = name;
+  $("#coinAddr").textContent = addr;
+  const copy = $("#coinCopy"); copy.dataset.copy = addr; copy.dataset.name = name; copy.textContent = "Copy address";
+  $("#payAmount").placeholder = unit === "COIN" ? c.ph : "10";
+  $("#coinNote").textContent = `The wallet buttons open your wallet with the address and amount filled in. If nothing opens, copy the address instead. Only send ${name} to this address. Crypto payments can't be reversed.`;
+  if (unit === "FIAT" && $("#payAmount").value.trim()) loadRates(fiat);
+  let amt = null, status = "", err = "";
+  try { const r = computeAmount(); amt = r.amt || null; status = r.status || ""; } catch (e) { err = e.message; }
+  $("#convNote").textContent = status;
+  $("#amountErr").textContent = err;
+  $("#payBrowser").hidden = !c.wallet;
+  $("#payTrust").href = `https://link.trustwallet.com/send?asset=c${c.slip}&address=${addr}${amt ? "&amount=" + amt.text : ""}`;
+  const uri = $("#payUri");
+  uri.hidden = !c.uri;
+  if (c.uri) uri.href = c.uri(addr, amt && amt.text, amt && amt.atomic.toString()); else uri.removeAttribute("href");
+}
+
+async function payFromBrowser(){
+  const { addr, c } = currentCoin();
+  try {
+    if (unit === "FIAT" && $("#payAmount").value.trim()) await loadRates(fiat, true);   // use a fresh price
+    const amt = computeAmount().amt;
+    if (!amt) { toast("Enter an amount first"); $("#payAmount").focus(); return; }
+    if (c.wallet === "eth") {
+      const p = window.ethereum;
+      if (!p) { toast("No Ethereum wallet found in this browser. Try Trust Wallet or copy the address."); return; }
+      const accounts = await p.request({ method: "eth_requestAccounts" });
+      if ((await p.request({ method: "eth_chainId" })) !== "0x1") {
+        await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x1" }] });
+      }
+      await p.request({ method: "eth_sendTransaction", params: [{ from: accounts[0], to: addr, value: "0x" + amt.atomic.toString(16) }] });
+    } else if (c.wallet === "tron") {
+      if (!window.tronLink || !window.tronWeb) { toast("No TronLink wallet found in this browser. Try Trust Wallet or copy the address."); return; }
+      await window.tronLink.request({ method: "tron_requestAccounts" });
+      const res = await window.tronWeb.trx.sendTransaction(addr, Number(amt.atomic));
+      if (res && res.result === false) throw new Error("The transaction was not sent");
+    }
+    toast("Thank you! The payment was sent from your wallet.");
+  } catch (e) {
+    toast(e && e.code === 4001 ? "Payment cancelled" : (e && e.message) || "Payment failed");
+  }
+}
+
+$("#geoNote").textContent = country
+  ? `Looks like you're in ${displayName("region", country) || country}, so amounts are in ${fiat}. Change the currency if that's wrong.`
+  : `Amounts are in ${fiat}. Change the currency if you'd like.`;
+$("#coinSelect").addEventListener("change", () => { buildUnits(); refreshPay(); });
+$("#payUnit").addEventListener("change", e => {
+  if (e.target.value === "COIN") unit = "COIN"; else { unit = "FIAT"; fiat = e.target.value.slice(2); }
+  buildUnits(); refreshPay();
+});
+$("#payAmount").addEventListener("input", refreshPay);
+$("#payBrowser").addEventListener("click", payFromBrowser);
+buildUnits();
+refreshPay();
+
+/* ---------- copy wallet addresses ---------- */
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  const text = b.dataset.copy;
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch {} ta.remove();
+  }
+  const old = b.textContent; b.textContent = "Copied";
+  toast(b.dataset.name + " address copied");
+  setTimeout(() => { b.textContent = old; }, 1800);
+});
 
 /* ---------- start ---------- */
 loadWorks();
