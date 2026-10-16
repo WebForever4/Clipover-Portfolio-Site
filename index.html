@@ -77,6 +77,7 @@
   .thumb img{width:100%;height:100%;object-fit:cover;display:block}
   .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
   .meta{font-size:14px;color:var(--muted)}
+  .modcard h3{font-size:20px}
   .desc{font-size:16px;color:var(--ink)}
   .acts{margin-top:auto;padding-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .empty{grid-column:1/-1;color:var(--muted);padding:8px 0}
@@ -139,7 +140,7 @@
     .brand{order:1;margin-right:auto;padding:8px 0;font-size:18px}
     .brand img{height:30px}
     #signInBtn{order:2;font-size:15px}
-    .tabs{order:3;width:100%;overflow-x:auto;gap:18px;padding:2px 0 12px}
+    .tabs{order:3;width:100%;flex-wrap:wrap;gap:0 16px;padding:0 0 10px}
     .nav a.link{font-size:14px;white-space:nowrap}
     .addr-row{flex-direction:column;align-items:stretch}
     .addr-row .btn{align-self:flex-start}
@@ -157,6 +158,7 @@
     <a class="brand" href="#works"><img src="clippy.jpg" alt=""><span>Clipover</span></a>
     <nav class="tabs" aria-label="Pages">
       <a class="link" href="#works">Works</a>
+      <a class="link" href="#mods">Mods</a>
       <a class="link" href="#games">Games</a>
       <a class="link" href="#updates" id="navUpdates" hidden>Updates</a>
       <a class="link" href="#orders">Orders</a>
@@ -189,6 +191,12 @@
       <ul class="grid" id="grid"></ul>
     </section>
 
+    <section id="mods">
+      <h2>Mods</h2>
+      <p class="sub">People Playground mods I've made or worked on, all on Nexus Mods. Want something added to one? Use the button on its card and the order form fills itself in.</p>
+      <ul class="grid" id="modGrid"></ul>
+    </section>
+
     <section id="games">
       <h2>Games</h2>
       <p class="sub">Games I've made. They run right here in your browser.</p>
@@ -198,7 +206,7 @@
         <div class="gamebox"><iframe id="gameFrame" title="Tiny Shipwreck Salvage" allow="fullscreen; autoplay"></iframe></div>
         <div class="row">
           <button class="btn" type="button" id="gameFull">Play full screen</button>
-          <a class="btn second" href="games/tiny-shipwreck-salvage.html" target="_blank" rel="noopener">Open in a new tab</a>
+          <a class="btn second" href="tiny-shipwreck-salvage.html" target="_blank" rel="noopener">Open in a new tab</a>
         </div>
         <p class="note">Click the game once so it gets your keys. Your progress is saved in this browser.</p>
       </div>
@@ -835,8 +843,27 @@ document.addEventListener("click", async e => {
   setTimeout(() => { b.textContent = old; }, 1800);
 });
 
+/* ---------- mods on Nexus Mods ---------- */
+const MODS = [
+  { title: "Tomerson's and Clipover's Spider-Playground", by: "Code by Clipover", url: "https://www.nexusmods.com/peopleplayground/mods/257", desc: "Adds Spider-Man, Miles Morales and Green Goblin with web-shooters, a healing toggle, pumpkin bombs and a glider." },
+  { title: "Age Of Olympus By Bluebox Industries", by: "", url: "https://www.nexusmods.com/peopleplayground/mods/216", desc: "Adds gods, giants and titans, each with their own abilities." },
+  { title: "Aces Captain America Mod", by: "Code by Clipover", url: "https://www.nexusmods.com/peopleplayground/mods/256", desc: "Adds Captain America to People Playground." },
+  { title: "Clipover's Elvis Presley Mod", by: "By Clipover", url: "https://www.nexusmods.com/peopleplayground/mods/181", desc: "Adds Elvis Presley to People Playground." },
+  { title: "Clipover's Character Drops", by: "By Clipover", url: "https://www.nexusmods.com/peopleplayground/mods/156", desc: "Character drops for People Playground." }
+];
+$("#modGrid").innerHTML = MODS.map((m, i) => `<li class="card modcard"><div class="body">${m.by ? `<p class="meta">${esc(m.by)}</p>` : ""}<h3>${esc(m.title)}</h3><p class="desc">${esc(m.desc)}</p><p class="acts"><a class="btn small second" href="${esc(m.url)}" target="_blank" rel="noopener">View on Nexus Mods</a><button class="btn small" type="button" data-addition="${i}">Add an addition to this mod</button></p></div></li>`).join("");
+$("#modGrid").addEventListener("click", e => {
+  const b = e.target.closest("[data-addition]"); if (!b) return;
+  const m = MODS[Number(b.dataset.addition)];
+  const type = $("#orderType"); type.value = "People Playground mod"; type.dispatchEvent(new Event("change"));
+  const box = $("#orderDetails");
+  box.value = `Addition to "${m.title}" (${m.url})\n\nWhat I'd like added: `;
+  location.hash = "orders";
+  setTimeout(() => { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }, 80);
+});
+
 /* ---------- tabs: one page at a time, chosen by the link (#works, #orders ...) ---------- */
-const TABS = ["works", "games", "updates", "orders", "community", "support", "admin"];
+const TABS = ["works", "mods", "games", "updates", "orders", "community", "support", "admin"];
 let hasUpdates = false;
 const tabAllowed = id => TABS.includes(id) && (id !== "updates" || hasUpdates) && (id !== "admin" || !!S);
 function showTab(scroll){
@@ -846,7 +873,7 @@ function showTab(scroll){
   $("#home").hidden = id !== "works";
   document.querySelectorAll(".tabs a").forEach(a => a.getAttribute("href") === "#" + id ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
   const gf = $("#gameFrame");
-  if (id === "games") { if (gf.dataset.on !== "1") { gf.src = "games/tiny-shipwreck-salvage.html"; gf.dataset.on = "1"; } }
+  if (id === "games") { if (gf.dataset.on !== "1") { gf.src = "tiny-shipwreck-salvage.html"; gf.dataset.on = "1"; } }
   else if (gf.dataset.on === "1") { gf.src = "about:blank"; gf.dataset.on = "0"; }   // stops the game and its sound
   if (scroll) window.scrollTo(0, 0);
   if (id === "works" && window.heroCheck) window.heroCheck();
@@ -855,7 +882,7 @@ addEventListener("hashchange", () => showTab(true));
 
 $("#gameFull").addEventListener("click", () => {
   const f = $("#gameFrame"), go = f.requestFullscreen || f.webkitRequestFullscreen;
-  if (go) go.call(f); else window.open("games/tiny-shipwreck-salvage.html", "_blank", "noopener");
+  if (go) go.call(f); else window.open("tiny-shipwreck-salvage.html", "_blank", "noopener");
 });
 
 /* ---------- start ---------- */
