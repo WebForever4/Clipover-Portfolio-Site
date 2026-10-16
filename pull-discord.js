@@ -1,5 +1,3 @@
-// Reads recent messages from one Discord channel and saves them to updates.json.
-// Runs in GitHub Actions. Needs DISCORD_BOT_TOKEN and DISCORD_CHANNEL_ID (DISCORD_GUILD_ID is optional, for "View in Discord" links).
 const fs = require("fs");
 const { DISCORD_BOT_TOKEN: token, DISCORD_CHANNEL_ID: channel, DISCORD_GUILD_ID: guild } = process.env;
 
@@ -9,9 +7,9 @@ if (!token || !channel) {
 }
 
 const clean = s => String(s || "")
-  .replace(/<a?:\w+:\d+>/g, "")      // custom emoji
-  .replace(/<@[!&]?\d+>/g, "")       // user and role mentions
-  .replace(/<#\d+>/g, "")            // channel mentions
+  .replace(/<a?:\w+:\d+>/g, "")
+  .replace(/<@[!&]?\d+>/g, "")
+  .replace(/<#\d+>/g, "")
   .replace(/@(everyone|here)/g, "")
   .trim();
 

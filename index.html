@@ -399,14 +399,14 @@ function guessRepo(){
     const seg = location.pathname.split("/").filter(Boolean)[0];
     return { owner, repo: seg && !seg.includes(".") ? seg : owner + ".github.io" };
   }
-  return { owner: "WebForever4", repo: "webforever4.github.io" };   // used when the site is hosted somewhere else, like Render
+  return { owner: "WebForever4", repo: "webforever4.github.io" };
 }
 const session = {
   get(){ try { return JSON.parse(sessionStorage.getItem("clipover-session") || "null"); } catch { return null; } },
   set(v){ try { sessionStorage.setItem("clipover-session", JSON.stringify(v)); } catch {} },
   clear(){ try { sessionStorage.removeItem("clipover-session"); } catch {} }
 };
-let S = session.get();   // { owner, repo, token, branch, login }
+let S = session.get();
 
 /* ---------- hero: draggable name tiles that collide ---------- */
 (function hero(){
@@ -736,7 +736,7 @@ function detectCountry(){
 const ALL_CURRENCIES = [...new Set(["USD", "EUR", "GBP", "AUD", "CAD", "NZD", ...Object.values(COUNTRY_CUR)])].sort();
 const country = detectCountry();
 let fiat = (country && COUNTRY_CUR[country]) || "USD";
-let unit = "FIAT";   // "FIAT" = amount is in the chosen currency, "COIN" = amount is already in crypto
+let unit = "FIAT";
 const displayName = (type, code) => { try { return new Intl.DisplayNames(["en"], { type }).of(code); } catch { return ""; } };
 const money = (n, cur) => { try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur, currencyDisplay: "code", maximumFractionDigits: n < 1 ? 6 : 2 }).format(n); } catch { return n.toFixed(2) + " " + cur; } };
 
@@ -930,7 +930,7 @@ function showTab(scroll){
   document.querySelectorAll(".tabs a").forEach(a => a.getAttribute("href") === "#" + id ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
   const gf = $("#gameFrame");
   if (id === "games") { if (gf.dataset.on !== "1") { gf.src = "tiny-shipwreck-salvage.html"; gf.dataset.on = "1"; } }
-  else if (gf.dataset.on === "1") { gf.src = "about:blank"; gf.dataset.on = "0"; }   // stops the game and its sound
+  else if (gf.dataset.on === "1") { gf.src = "about:blank"; gf.dataset.on = "0"; }
   if (scroll) window.scrollTo(0, 0);
   if (id === "works" && window.heroCheck) window.heroCheck();
 }
@@ -956,8 +956,8 @@ if (S) setSignedIn(true); else showTab(false);
 <!-- Discord chat button from WidgetBot: shows the Clipover Studios #announcements channel -->
 <script src='https://cdn.jsdelivr.net/npm/@widgetbot/crate@3' async defer>
     new Crate({
-        server: '1496851209544531978', // Clipover Studios
-        channel: '1496851509571354685' // #announcements
+        server: '1496851209544531978',
+        channel: '1496851509571354685'
     })
 </script>
 </body>
