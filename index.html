@@ -164,7 +164,7 @@
       <a class="link" href="#orders">Orders</a>
       <a class="link" href="#community">Discord</a>
       <a class="link" href="#support">Support</a>
-      <a class="link" href="#admin" id="navAdmin" hidden>Add a work</a>
+      <a class="link" href="#admin" id="navAdmin" hidden>Upload</a>
     </nav>
     <button class="linkbtn" id="signInBtn" type="button">Sign in</button>
   </div>
@@ -202,7 +202,7 @@
       <p class="sub">Games I've made. They run right here in your browser.</p>
       <div class="game">
         <h3>Tiny Shipwreck Salvage</h3>
-        <p class="sub">Dive down, haul up salvage and junk, sell it for coins and spend them on upgrades to reach deeper. Swim with WASD, the arrow keys or by dragging, and hold Shift to boost.</p>
+        <p class="sub">Dive down, haul up salvage and junk, sell it for coins and spend them on upgrades to reach deeper. Swim with WASD, the arrow keys or by dragging.</p>
         <div class="gamebox"><iframe id="gameFrame" title="Tiny Shipwreck Salvage" allow="fullscreen; autoplay"></iframe></div>
         <div class="row">
           <button class="btn" type="button" id="gameFull">Play full screen</button>
@@ -220,16 +220,22 @@
     </section>
 
     <section id="admin">
-      <h2>Add a work</h2>
+      <h2>Upload</h2>
       <p class="sub">Signed in as <strong id="whoami"></strong>. Uploads are saved straight to your repository.</p>
       <form id="uploadForm">
+        <label>Add to
+          <select name="kind" id="upKind">
+            <option value="works">Works</option>
+            <option value="mods">Mods</option>
+          </select>
+        </label>
         <label>Title
           <input name="title" required maxlength="80">
         </label>
         <label>Description
           <textarea name="desc" maxlength="500"></textarea>
         </label>
-        <label>Category
+        <label data-for="works">Category
           <select name="category">
             <option>People Playground mod</option>
             <option>Tampermonkey script</option>
@@ -237,18 +243,21 @@
             <option>Other work</option>
           </select>
         </label>
+        <label data-for="mods" hidden>Credit line (optional)
+          <input name="by" maxlength="80" placeholder="e.g. Code by Clipover">
+        </label>
         <label>Link (optional)
           <input name="link" type="url" placeholder="https://">
         </label>
         <label>Preview image (optional)
           <input name="image" type="file" accept="image/*">
         </label>
-        <label>Download file (optional)
+        <label data-for="works">Download file (optional)
           <input name="file" type="file">
         </label>
         <p class="note">Files up to about 25 MB work. For bigger builds, link to a GitHub Release.</p>
         <div class="row">
-          <button class="btn" type="submit" id="uploadBtn">Publish work</button>
+          <button class="btn" type="submit" id="uploadBtn">Publish to Works</button>
           <button class="btn second" type="button" id="signOutBtn">Sign out</button>
         </div>
         <p class="err" id="uploadMsg" role="status"></p>
@@ -390,7 +399,7 @@ function guessRepo(){
     const seg = location.pathname.split("/").filter(Boolean)[0];
     return { owner, repo: seg && !seg.includes(".") ? seg : owner + ".github.io" };
   }
-  return { owner: "", repo: "" };
+  return { owner: "WebForever4", repo: "webforever4.github.io" };   // used when the site is hosted somewhere else, like Render
 }
 const session = {
   get(){ try { return JSON.parse(sessionStorage.getItem("clipover-session") || "null"); } catch { return null; } },
@@ -541,21 +550,21 @@ async function putFile(path, b64, message){
   let sha; try { sha = (await gh(cp(path) + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now())).sha; } catch (e) { if (e.status !== 404) throw e; }
   return gh(cp(path), { method: "PUT", body: JSON.stringify({ message, content: b64, branch: S.branch, ...(sha ? { sha } : {}) }) });
 }
-async function readWorksJson(){
+async function readList(file){
   try {
-    const f = await gh(cp("works.json") + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now());
+    const f = await gh(cp(file) + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now());
     return { data: JSON.parse(textFromB64(f.content)), sha: f.sha };
-  } catch (e) { if (e.status === 404) return { data: { works: [] }, sha: null }; throw e; }
+  } catch (e) { if (e.status === 404) return { data: {}, sha: null }; throw e; }
 }
-/* Reads the live works.json, applies your change to what is there right now, and retries if GitHub
-   says the file moved. Works already posted are always kept: a stale copy never overwrites them. */
-async function updateWorks(mutate, message){
+/* Reads the live file (works.json or mods.json), applies your change to what is there right now, and retries if
+   GitHub says the file moved. Things already posted are always kept: a stale copy never overwrites them. */
+async function updateList(file, key, mutate, message){
   let lastErr;
   for (let i = 0; i < 4; i++) {
-    const { data, sha } = await readWorksJson();
-    const next = mutate(Array.isArray(data.works) ? data.works : []);
+    const { data, sha } = await readList(file);
+    const next = mutate(Array.isArray(data[key]) ? data[key] : []);
     try {
-      await gh(cp("works.json"), { method: "PUT", body: JSON.stringify({ message, content: b64FromText(JSON.stringify({ ...data, works: next }, null, 2) + "\n"), branch: S.branch, ...(sha ? { sha } : {}) }) });
+      await gh(cp(file), { method: "PUT", body: JSON.stringify({ message, content: b64FromText(JSON.stringify({ ...data, [key]: next }, null, 2) + "\n"), branch: S.branch, ...(sha ? { sha } : {}) }) });
       return next;
     } catch (e) {
       lastErr = e;
@@ -565,6 +574,8 @@ async function updateWorks(mutate, message){
   }
   throw lastErr;
 }
+const updateWorks = (mutate, message) => updateList("works.json", "works", mutate, message);
+const updateMods = (mutate, message) => updateList("mods.json", "mods", mutate, message);
 const byNewest = list => list.slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
 /* ---------- sign in ---------- */
@@ -574,6 +585,7 @@ function setSignedIn(on){
   $("#signInBtn").textContent = on ? "Signed in" : "Sign in";
   if (on) $("#whoami").textContent = S.login;
   renderWorks();
+  renderMods();
   showTab(false);
 }
 $("#signInBtn").addEventListener("click", () => {
@@ -603,22 +615,37 @@ $("#signInForm").addEventListener("submit", async e => {
 $("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); location.hash = "works"; toast("Signed out"); });
 
 /* ---------- upload ---------- */
+const syncUploadForm = () => {
+  const kind = $("#upKind").value;
+  document.querySelectorAll("#uploadForm [data-for]").forEach(el => { el.hidden = el.dataset.for !== kind; });
+  $("#uploadBtn").textContent = kind === "mods" ? "Publish to Mods" : "Publish to Works";
+};
+$("#upKind").addEventListener("change", syncUploadForm);
 $("#uploadForm").addEventListener("submit", async e => {
   e.preventDefault();
   if (!S) return;
-  const f = e.target, btn = $("#uploadBtn"), msg = $("#uploadMsg");
-  const img = f.image.files[0], file = f.file.files[0];
+  const f = e.target, btn = $("#uploadBtn"), msg = $("#uploadMsg"), kind = f.kind.value;
+  const img = f.image.files[0], file = kind === "works" ? f.file.files[0] : null;
   for (const x of [img, file]) if (x && x.size > 25 * 1024 * 1024) { msg.textContent = x.name + " is over 25 MB. Share it as a GitHub Release link instead."; return; }
   btn.disabled = true; msg.style.color = ""; msg.textContent = "Publishing...";
   try {
-    const id = Date.now().toString(36);
-    const entry = { id, title: f.title.value.trim(), desc: f.desc.value.trim(), category: f.category.value, link: safeUrl(f.link.value.trim()), date: new Date().toISOString() };
-    if (img) { const p = `works/${id}-${safeName(img.name)}`; await putFile(p, await b64FromFile(img), "Add preview for " + entry.title); entry.image = p; }
-    if (file) { const p = `works/${id}-${safeName(file.name)}`; await putFile(p, await b64FromFile(file), "Add file for " + entry.title); entry.file = p; }
-    const saved = await updateWorks(list => [entry, ...list.filter(x => x.id !== entry.id)], "Add work: " + entry.title);
-    works = byNewest(saved); renderWorks();
-    f.reset(); msg.textContent = "Published. The live site updates in a minute or two.";
-    toast("Work published");
+    const id = Date.now().toString(36), title = f.title.value.trim(), link = safeUrl(f.link.value.trim()), date = new Date().toISOString();
+    const dir = kind === "mods" ? "mods" : "works";
+    let entry;
+    if (kind === "mods") entry = { id, title, desc: f.desc.value.trim(), by: f.by.value.trim(), url: link, date };
+    else entry = { id, title, desc: f.desc.value.trim(), category: f.category.value, link, date };
+    if (img) { const p = `${dir}/${id}-${safeName(img.name)}`; await putFile(p, await b64FromFile(img), "Add preview for " + title); entry.image = p; }
+    if (file) { const p = `${dir}/${id}-${safeName(file.name)}`; await putFile(p, await b64FromFile(file), "Add file for " + title); entry.file = p; }
+    if (kind === "mods") {
+      uploadedMods = byNewest(await updateMods(list => [entry, ...list.filter(x => x.id !== entry.id)], "Add mod: " + title));
+      renderMods();
+    } else {
+      works = byNewest(await updateWorks(list => [entry, ...list.filter(x => x.id !== entry.id)], "Add work: " + title));
+      renderWorks();
+    }
+    f.reset(); syncUploadForm();
+    msg.textContent = "Published. The live site updates in a minute or two.";
+    toast(kind === "mods" ? "Mod published" : "Work published");
   } catch (ex) { msg.style.color = "#b3123f"; msg.textContent = ex.message; }
   finally { btn.disabled = false; }
 });
@@ -851,13 +878,42 @@ const MODS = [
   { title: "Clipover's Elvis Presley Mod", by: "By Clipover", url: "https://www.nexusmods.com/peopleplayground/mods/181", desc: "Adds Elvis Presley to People Playground." },
   { title: "Clipover's Character Drops", by: "By Clipover", url: "https://www.nexusmods.com/peopleplayground/mods/156", desc: "Character drops for People Playground." }
 ];
-$("#modGrid").innerHTML = MODS.map((m, i) => `<li class="card modcard"><div class="body">${m.by ? `<p class="meta">${esc(m.by)}</p>` : ""}<h3>${esc(m.title)}</h3><p class="desc">${esc(m.desc)}</p><p class="acts"><a class="btn small second" href="${esc(m.url)}" target="_blank" rel="noopener">View on Nexus Mods</a><button class="btn small" type="button" data-addition="${i}">Add an addition to this mod</button></p></div></li>`).join("");
-$("#modGrid").addEventListener("click", e => {
+let uploadedMods = [];
+const allMods = () => [...byNewest(uploadedMods), ...MODS];
+function renderMods(){
+  $("#modGrid").innerHTML = allMods().map((m, i) => {
+    const own = uploadedMods.includes(m);
+    const open = safeUrl(m.url) ? `<a class="btn small second" href="${esc(m.url)}" target="_blank" rel="noopener">${/nexusmods\.com/.test(m.url) ? "View on Nexus Mods" : "Open"}</a>` : "";
+    const del = S && own ? `<button class="linkbtn danger" type="button" data-delmod="${esc(m.id)}">Delete</button>` : "";
+    const thumb = m.image ? `<div class="thumb"><img src="${esc(m.image)}" alt="" loading="lazy"></div>` : "";
+    return `<li class="card modcard">${thumb}<div class="body">${m.by ? `<p class="meta">${esc(m.by)}</p>` : ""}<h3>${esc(m.title)}</h3>${m.desc ? `<p class="desc">${esc(m.desc)}</p>` : ""}<p class="acts">${open}<button class="btn small" type="button" data-addition="${i}">Add an addition to this mod</button>${del}</p></div></li>`;
+  }).join("");
+}
+async function loadMods(){
+  try {
+    const r = await fetch("mods.json?" + Date.now());
+    if (r.ok) uploadedMods = byNewest((await r.json()).mods || []);
+  } catch {}
+  renderMods();
+}
+$("#modGrid").addEventListener("click", async e => {
+  const d = e.target.closest("[data-delmod]");
+  if (d && S) {
+    const m = uploadedMods.find(x => x.id === d.dataset.delmod); if (!m) return;
+    if (!confirm('Delete "' + m.title + '"? This removes it and its picture from the repository.')) return;
+    d.disabled = true;
+    try {
+      uploadedMods = byNewest(await updateMods(list => list.filter(x => x.id !== m.id), "Remove mod: " + m.title));
+      if (m.image) { try { const cur = await gh(cp(m.image) + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now()); await gh(cp(m.image), { method: "DELETE", body: JSON.stringify({ message: "Remove " + m.image, sha: cur.sha, branch: S.branch }) }); } catch {} }
+      renderMods(); toast("Deleted");
+    } catch (ex) { toast(ex.message); d.disabled = false; }
+    return;
+  }
   const b = e.target.closest("[data-addition]"); if (!b) return;
-  const m = MODS[Number(b.dataset.addition)];
+  const m = allMods()[Number(b.dataset.addition)];
   const type = $("#orderType"); type.value = "People Playground mod"; type.dispatchEvent(new Event("change"));
   const box = $("#orderDetails");
-  box.value = `Addition to "${m.title}" (${m.url})\n\nWhat I'd like added: `;
+  box.value = `Addition to "${m.title}"${safeUrl(m.url) ? " (" + m.url + ")" : ""}\n\nWhat I'd like added: `;
   location.hash = "orders";
   setTimeout(() => { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }, 80);
 });
@@ -886,8 +942,11 @@ $("#gameFull").addEventListener("click", () => {
 });
 
 /* ---------- start ---------- */
+renderMods();
 loadWorks();
+loadMods();
 loadUpdates();
+syncUploadForm();
 if (S) setSignedIn(true); else showTab(false);
 
 
