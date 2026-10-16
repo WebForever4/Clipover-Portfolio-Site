@@ -78,6 +78,7 @@
   .card .body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
   .meta{font-size:14px;color:var(--muted)}
   .modcard h3{font-size:20px}
+  .stats{font-size:14px;font-weight:600;color:var(--ink)}
   .desc{font-size:16px;color:var(--ink)}
   .acts{margin-top:auto;padding-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .empty{grid-column:1/-1;color:var(--muted);padding:8px 0}
@@ -256,8 +257,10 @@
           <input name="file" type="file">
         </label>
         <p class="note">Files up to about 25 MB work. For bigger builds, link to a GitHub Release.</p>
+        <p class="note" id="editNote" hidden>Leave the picture and file empty to keep the current ones.</p>
         <div class="row">
           <button class="btn" type="submit" id="uploadBtn">Publish to Works</button>
+          <button class="btn second" type="button" id="cancelEdit" hidden>Cancel</button>
           <button class="btn second" type="button" id="signOutBtn">Sign out</button>
         </div>
         <p class="err" id="uploadMsg" role="status"></p>
@@ -298,10 +301,9 @@
           <input name="contact" id="orderContact" placeholder="e.g. yourname">
         </label>
         <div class="row">
-          <button class="btn" type="submit" id="issueBtn">Send order on GitHub</button>
-          <a class="btn second" id="discordOrder" href="https://discord.gg/bNM8W8aAhD" target="_blank" rel="noopener">Order on Discord</a>
+          <button class="btn" type="submit" id="orderBtn">Copy my order and open Discord</button>
         </div>
-        <p class="note">GitHub orders open a public issue on this repository, so leave private details out. Use Discord for those.</p>
+        <p class="note">Your order is copied and Discord opens in a new tab. Paste it into the ticket there.</p>
       </form>
     </section>
 
@@ -527,7 +529,7 @@ function renderWorks(){
     const acts = [
       safeUrl(w.link) ? `<a class="btn small second" href="${esc(w.link)}" target="_blank" rel="noopener">Open</a>` : "",
       w.file ? `<a class="btn small second" href="${esc(w.file)}" download>Download</a>` : "",
-      S ? `<button class="linkbtn danger" type="button" data-del="${esc(w.id)}">Delete</button>` : ""
+      S ? `<button class="linkbtn" type="button" data-edit="${esc(w.id)}">Edit</button><button class="linkbtn danger" type="button" data-del="${esc(w.id)}">Delete</button>` : ""
     ].filter(Boolean).join("");
     return `<li class="card"><div class="thumb">${img}</div><div class="body">${meta ? `<p class="meta">${esc(meta)}</p>` : ""}<h3>${esc(w.title)}</h3>${w.desc ? `<p class="desc">${esc(w.desc)}</p>` : ""}${acts ? `<p class="acts">${acts}</p>` : ""}</div></li>`;
   }).join("");
@@ -612,46 +614,96 @@ $("#signInForm").addEventListener("submit", async e => {
     err.textContent = ex.status === 401 ? "GitHub rejected that token. Check it and try again." : ex.message;
   } finally { go.disabled = false; }
 });
-$("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); location.hash = "works"; toast("Signed out"); });
+$("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); endEdit(); location.hash = "works"; toast("Signed out"); });
 
-/* ---------- upload ---------- */
+/* ---------- upload and edit ---------- */
+let editing = null;
 const syncUploadForm = () => {
   const kind = $("#upKind").value;
   document.querySelectorAll("#uploadForm [data-for]").forEach(el => { el.hidden = el.dataset.for !== kind; });
-  $("#uploadBtn").textContent = kind === "mods" ? "Publish to Mods" : "Publish to Works";
+  $("#uploadBtn").textContent = editing ? "Save changes" : kind === "mods" ? "Publish to Mods" : "Publish to Works";
+  $("#cancelEdit").hidden = !editing;
+  $("#editNote").hidden = !editing;
+  $("#admin h2").textContent = editing ? "Edit" : "Upload";
 };
 $("#upKind").addEventListener("change", syncUploadForm);
+function endEdit(){
+  editing = null;
+  $("#upKind").disabled = false;
+  $("#uploadForm").reset();
+  $("#uploadMsg").textContent = "";
+  syncUploadForm();
+}
+function startEdit(kind, entry){
+  const f = $("#uploadForm");
+  editing = { kind, id: entry.id, back: kind === "mods" ? "mods" : "works" };
+  f.reset();
+  $("#upKind").value = kind; $("#upKind").disabled = true;
+  f.title.value = entry.title || ""; f.desc.value = entry.desc || "";
+  if (kind === "mods") { f.by.value = entry.by || ""; f.link.value = entry.url || ""; }
+  else { f.category.value = entry.category || "Other work"; f.link.value = entry.link || ""; }
+  $("#uploadMsg").textContent = "";
+  syncUploadForm();
+  location.hash = "admin";
+}
+async function removeRepoFile(path){
+  try {
+    const cur = await gh(cp(path) + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now());
+    await gh(cp(path), { method: "DELETE", body: JSON.stringify({ message: "Remove " + path, sha: cur.sha, branch: S.branch }) });
+  } catch {}
+}
+$("#cancelEdit").addEventListener("click", () => { const back = editing && editing.back; endEdit(); if (back) location.hash = back; });
 $("#uploadForm").addEventListener("submit", async e => {
   e.preventDefault();
   if (!S) return;
-  const f = e.target, btn = $("#uploadBtn"), msg = $("#uploadMsg"), kind = f.kind.value;
+  const f = e.target, btn = $("#uploadBtn"), msg = $("#uploadMsg"), kind = editing ? editing.kind : f.kind.value;
   const img = f.image.files[0], file = kind === "works" ? f.file.files[0] : null;
   for (const x of [img, file]) if (x && x.size > 25 * 1024 * 1024) { msg.textContent = x.name + " is over 25 MB. Share it as a GitHub Release link instead."; return; }
-  btn.disabled = true; msg.style.color = ""; msg.textContent = "Publishing...";
+  btn.disabled = true; msg.style.color = ""; msg.textContent = editing ? "Saving..." : "Publishing...";
   try {
-    const id = Date.now().toString(36), title = f.title.value.trim(), link = safeUrl(f.link.value.trim()), date = new Date().toISOString();
+    const title = f.title.value.trim(), link = safeUrl(f.link.value.trim()), desc = f.desc.value.trim();
     const dir = kind === "mods" ? "mods" : "works";
-    let entry;
-    if (kind === "mods") entry = { id, title, desc: f.desc.value.trim(), by: f.by.value.trim(), url: link, date };
-    else entry = { id, title, desc: f.desc.value.trim(), category: f.category.value, link, date };
-    if (img) { const p = `${dir}/${id}-${safeName(img.name)}`; await putFile(p, await b64FromFile(img), "Add preview for " + title); entry.image = p; }
-    if (file) { const p = `${dir}/${id}-${safeName(file.name)}`; await putFile(p, await b64FromFile(file), "Add file for " + title); entry.file = p; }
-    if (kind === "mods") {
-      uploadedMods = byNewest(await updateMods(list => [entry, ...list.filter(x => x.id !== entry.id)], "Add mod: " + title));
-      renderMods();
+    if (editing) {
+      const id = editing.id;
+      const old = (kind === "mods" ? uploadedMods : works).find(x => x.id === id) || {};
+      const patch = kind === "mods" ? { title, desc, by: f.by.value.trim(), url: link } : { title, desc, category: f.category.value, link };
+      if (img) { const p = `${dir}/${id}-${Date.now().toString(36)}-${safeName(img.name)}`; await putFile(p, await b64FromFile(img), "Add preview for " + title); patch.image = p; }
+      if (file) { const p = `${dir}/${id}-${Date.now().toString(36)}-${safeName(file.name)}`; await putFile(p, await b64FromFile(file), "Add file for " + title); patch.file = p; }
+      const apply = list => list.map(x => x.id === id ? { ...x, ...patch } : x);
+      if (kind === "mods") { uploadedMods = byNewest(await updateMods(apply, "Edit mod: " + title)); renderMods(); }
+      else { works = byNewest(await updateWorks(apply, "Edit work: " + title)); renderWorks(); }
+      if (img && old.image) await removeRepoFile(old.image);
+      if (file && old.file) await removeRepoFile(old.file);
+      const back = editing.back;
+      endEdit();
+      location.hash = back;
+      toast("Changes saved. The live site updates in a minute or two.");
     } else {
-      works = byNewest(await updateWorks(list => [entry, ...list.filter(x => x.id !== entry.id)], "Add work: " + title));
-      renderWorks();
+      const id = Date.now().toString(36), date = new Date().toISOString();
+      let entry;
+      if (kind === "mods") entry = { id, title, desc, by: f.by.value.trim(), url: link, date };
+      else entry = { id, title, desc, category: f.category.value, link, date };
+      if (img) { const p = `${dir}/${id}-${safeName(img.name)}`; await putFile(p, await b64FromFile(img), "Add preview for " + title); entry.image = p; }
+      if (file) { const p = `${dir}/${id}-${safeName(file.name)}`; await putFile(p, await b64FromFile(file), "Add file for " + title); entry.file = p; }
+      if (kind === "mods") {
+        uploadedMods = byNewest(await updateMods(list => [entry, ...list.filter(x => x.id !== entry.id)], "Add mod: " + title));
+        renderMods();
+      } else {
+        works = byNewest(await updateWorks(list => [entry, ...list.filter(x => x.id !== entry.id)], "Add work: " + title));
+        renderWorks();
+      }
+      f.reset(); syncUploadForm();
+      msg.textContent = "Published. The live site updates in a minute or two.";
+      toast(kind === "mods" ? "Mod published" : "Work published");
     }
-    f.reset(); syncUploadForm();
-    msg.textContent = "Published. The live site updates in a minute or two.";
-    toast(kind === "mods" ? "Mod published" : "Work published");
   } catch (ex) { msg.style.color = "#b3123f"; msg.textContent = ex.message; }
   finally { btn.disabled = false; }
 });
 
 /* ---------- delete ---------- */
 $("#grid").addEventListener("click", async e => {
+  const ed = e.target.closest("[data-edit]");
+  if (ed && S) { const w = works.find(x => x.id === ed.dataset.edit); if (w) startEdit("works", w); return; }
   const b = e.target.closest("[data-del]"); if (!b || !S) return;
   const w = works.find(x => x.id === b.dataset.del); if (!w) return;
   if (!confirm('Delete "' + w.title + '"? This removes it and its uploaded files from the repository.')) return;
@@ -666,16 +718,15 @@ $("#grid").addEventListener("click", async e => {
 });
 
 /* ---------- orders ---------- */
-$("#orderForm").addEventListener("submit", e => {
-  e.preventDefault();
-  const g = guessRepo(), o = S ? S.owner : g.owner, r = S ? S.repo : g.repo;
-  const type = $("#orderType").value, details = $("#orderDetails").value.trim(), price = $("#orderPrice").value.trim(), problems = $("#orderProblems").value.trim(), contact = $("#orderContact").value.trim();
-  if (!o || !r) { toast("GitHub orders work once the site is live on GitHub Pages. Use the Discord button for now."); return; }
-  const body = `**Type:** ${type}\n**Max price:** ${price}\n**Contact:** ${contact || "(not given)"}\n**Any problems:** ${problems || "none"}\n\n**Request:**\n${details}`;
-  const url = `https://github.com/${o}/${r}/issues/new?labels=order&title=${encodeURIComponent("Order: " + type)}&body=${encodeURIComponent(body)}`;
-  window.open(url, "_blank", "noopener");
-});
-
+async function copyText(text){
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch {
+    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch {}
+    ta.remove(); return ok;
+  }
+}
 const ORDER_HINTS = {
   "People Playground mod": { label: "What mod or addition are you requesting?", details: "A God of War mod with Kratos and others", price: "$25", discord: "https://discord.gg/bNM8W8aAhD" },
   "Tampermonkey script": { label: "What script are you requesting?", details: "A script that skips the intro video on example.com", price: "$10", discord: "https://discord.gg/AFuksKe5aW" }
@@ -685,7 +736,20 @@ $("#orderType").addEventListener("change", e => {
   $("#lblDetails").textContent = h.label;
   $("#orderDetails").placeholder = h.details;
   $("#orderPrice").placeholder = h.price;
-  $("#discordOrder").href = h.discord;
+});
+$("#orderForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const type = $("#orderType").value, h = ORDER_HINTS[type];
+  const text = [
+    "Order: " + type,
+    "What I'm requesting: " + $("#orderDetails").value.trim(),
+    "Max price: " + $("#orderPrice").value.trim(),
+    "Any problems: " + ($("#orderProblems").value.trim() || "none"),
+    "Contact: " + ($("#orderContact").value.trim() || "(not given)")
+  ].join("\n");
+  const ok = await copyText(text);
+  toast(ok ? "Order copied. Paste it into the ticket in Discord." : "Couldn't copy it. Type your order into the ticket in Discord.");
+  window.open(h.discord, "_blank", "noopener");
 });
 
 /* ---------- updates from Discord (filled in by a GitHub Action) ---------- */
@@ -859,12 +923,7 @@ refreshPay();
 /* ---------- copy wallet addresses ---------- */
 document.addEventListener("click", async e => {
   const b = e.target.closest("[data-copy]"); if (!b) return;
-  const text = b.dataset.copy;
-  try { await navigator.clipboard.writeText(text); }
-  catch {
-    const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-    document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch {} ta.remove();
-  }
+  await copyText(b.dataset.copy);
   const old = b.textContent; b.textContent = "Copied";
   toast(b.dataset.name + " address copied");
   setTimeout(() => { b.textContent = old; }, 1800);
@@ -879,15 +938,25 @@ const MODS = [
   { title: "Clipover's Character Drops", by: "By Clipover", url: "https://www.nexusmods.com/peopleplayground/mods/156", desc: "Character drops for People Playground." }
 ];
 let uploadedMods = [];
+let modStats = {};
+const nexusKey = url => { const m = /nexusmods\.com\/([^/]+)\/mods\/(\d+)/.exec(url || ""); return m ? m[1] + "/" + m[2] : ""; };
 const allMods = () => [...byNewest(uploadedMods), ...MODS];
 function renderMods(){
   $("#modGrid").innerHTML = allMods().map((m, i) => {
     const own = uploadedMods.includes(m);
     const open = safeUrl(m.url) ? `<a class="btn small second" href="${esc(m.url)}" target="_blank" rel="noopener">${/nexusmods\.com/.test(m.url) ? "View on Nexus Mods" : "Open"}</a>` : "";
-    const del = S && own ? `<button class="linkbtn danger" type="button" data-delmod="${esc(m.id)}">Delete</button>` : "";
+    const del = S && own ? `<button class="linkbtn" type="button" data-editmod="${esc(m.id)}">Edit</button><button class="linkbtn danger" type="button" data-delmod="${esc(m.id)}">Delete</button>` : "";
+    const st = modStats[nexusKey(m.url)];
+    const nums = st ? `<p class="stats">${Number(st.downloads).toLocaleString()} downloads, ${Number(st.endorsements).toLocaleString()} endorsements</p>` : "";
     const thumb = m.image ? `<div class="thumb"><img src="${esc(m.image)}" alt="" loading="lazy"></div>` : "";
-    return `<li class="card modcard">${thumb}<div class="body">${m.by ? `<p class="meta">${esc(m.by)}</p>` : ""}<h3>${esc(m.title)}</h3>${m.desc ? `<p class="desc">${esc(m.desc)}</p>` : ""}<p class="acts">${open}<button class="btn small" type="button" data-addition="${i}">Add an addition to this mod</button>${del}</p></div></li>`;
+    return `<li class="card modcard">${thumb}<div class="body">${m.by ? `<p class="meta">${esc(m.by)}</p>` : ""}<h3>${esc(m.title)}</h3>${m.desc ? `<p class="desc">${esc(m.desc)}</p>` : ""}${nums}<p class="acts">${open}<button class="btn small" type="button" data-addition="${i}">Add an addition to this mod</button>${del}</p></div></li>`;
   }).join("");
+}
+async function loadModStats(){
+  try {
+    const r = await fetch("mod-stats.json?" + Date.now());
+    if (r.ok) { modStats = (await r.json()).stats || {}; renderMods(); }
+  } catch {}
 }
 async function loadMods(){
   try {
@@ -897,6 +966,8 @@ async function loadMods(){
   renderMods();
 }
 $("#modGrid").addEventListener("click", async e => {
+  const em = e.target.closest("[data-editmod]");
+  if (em && S) { const m = uploadedMods.find(x => x.id === em.dataset.editmod); if (m) startEdit("mods", m); return; }
   const d = e.target.closest("[data-delmod]");
   if (d && S) {
     const m = uploadedMods.find(x => x.id === d.dataset.delmod); if (!m) return;
@@ -945,6 +1016,7 @@ $("#gameFull").addEventListener("click", () => {
 renderMods();
 loadWorks();
 loadMods();
+loadModStats();
 loadUpdates();
 syncUploadForm();
 if (S) setSignedIn(true); else showTab(false);
