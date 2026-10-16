@@ -1,6 +1,14 @@
 {
   "works": [
     {
+      "id": "mval4q50",
+      "title": "PS5 Controller Support For Y3PD Games",
+      "desc": "Does what title says",
+      "category": "Tampermonkey script",
+      "link": "https://greasyfork.org/en/scripts/600490-ps5-dualsense-controller-support-ships-3d-tanks-3d-redcoats-io",
+      "date": "2026-10-16T06:26:56.726Z"
+    },
+    {
       "id": "mvakvt2k",
       "title": "Remove 2FA Prompt For Moderators On Discord Server",
       "desc": "Does what the title says",
