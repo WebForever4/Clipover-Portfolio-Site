@@ -1,3 +1,12 @@
 {
-  "works": []
+  "works": [
+    {
+      "id": "mvakvt2k",
+      "title": "Remove 2FA Prompt For Moderators On Discord Server",
+      "desc": "Does what the title says",
+      "category": "Tampermonkey script",
+      "link": "https://greasyfork.org/en/scripts/600488-hide-discord-2fa-moderation-notice",
+      "date": "2026-10-16T06:20:00.621Z"
+    }
+  ]
 }
