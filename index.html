@@ -176,7 +176,7 @@
       <a class="link" href="#support">Support</a>
       <a class="link" href="#admin" id="navAdmin" hidden>Upload</a>
     </nav>
-    <button class="linkbtn" id="signInBtn" type="button">Sign in</button>
+    <button class="linkbtn" id="signInBtn" type="button" hidden>Sign in</button>
   </div>
 </header>
 
@@ -691,6 +691,21 @@ $("#siUnlock").addEventListener("click", async () => {
 });
 $("#siForget").addEventListener("click", () => { vault.clear(); syncVaultUi(); $("#siErr").textContent = "Saved sign-in removed from this device."; });
 $("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); endEdit(); location.hash = "works"; toast("Signed out"); });
+
+/* The Sign in button is hidden from visitors. It shows on your own devices after you open the site with ?admin on the end,
+   or click the logo 5 times fast, or once you have signed in or saved a sign-in there. */
+const ownerFlag = {
+  get(){ try { return localStorage.getItem("clipover-owner") === "1"; } catch { return false; } },
+  set(){ try { localStorage.setItem("clipover-owner", "1"); } catch {} }
+};
+function showSignIn(){ ownerFlag.set(); $("#signInBtn").hidden = false; }
+if (new URLSearchParams(location.search).has("admin")) ownerFlag.set();
+if (S || ownerFlag.get() || vault.has()) $("#signInBtn").hidden = false;
+let logoClicks = 0, logoTimer;
+$(".brand").addEventListener("click", () => {
+  logoClicks++; clearTimeout(logoTimer); logoTimer = setTimeout(() => { logoClicks = 0; }, 1500);
+  if (logoClicks >= 5) { logoClicks = 0; showSignIn(); toast("Sign in is now available on this device"); }
+});
 
 /* ---------- upload and edit ---------- */
 let editing = null;
