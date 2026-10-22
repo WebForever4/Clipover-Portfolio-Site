@@ -332,6 +332,7 @@
     <section id="settings">
       <h2>Settings</h2>
       <p class="sub">Only you can see this. Changes are saved to your repository and the live site updates in a minute or two.</p>
+      <p class="err" id="setMsg" role="status"></p>
       <div class="sets">
         <details open><summary>Mods</summary>
           <p class="note">Nexus mods sync on their own. Remove one to take it off the site (it stays on Nexus), or edit how it appears. Mods you uploaded can be edited or deleted.</p>
@@ -396,7 +397,6 @@
           </div>
         </details>
       </div>
-      <p class="err" id="setMsg" role="status"></p>
     </section>
 
     <section id="orders">
@@ -1299,30 +1299,36 @@ async function loadSettings(){
   if (d) cfg = mergeCfg(d);
   applySettings(true);
 }
+function fail(ex){
+  const m = $("#setMsg"); m.style.color = "#b3123f";
+  const hint = [401, 403, 404].includes(ex.status) ? " Your token most likely can't write to this repository. Make a fine-grained token with Contents: Read and write and Actions: Read and write for this repo, then sign out and sign in with it." : "";
+  m.textContent = "NOT SAVED: " + ex.message + "." + hint; toast("Not saved. Read the red message at the top of Settings.");
+  m.scrollIntoView({ block: "center", behavior: "smooth" });
+}
 async function saveCfg(fn, msg){
   const m = $("#setMsg"); m.style.color = ""; m.textContent = "Saving...";
-  try { cfg = mergeCfg(await updateObj("settings.json", cur => fn(mergeCfg(cur)), msg)); applySettings(false); m.textContent = "Saved. The live site updates in a minute or two."; toast("Saved"); return true; }
-  catch (ex) { m.style.color = "#b3123f"; m.textContent = ex.message; return false; }
+  try { cfg = mergeCfg(await updateObj("settings.json", cur => fn(mergeCfg(cur)), msg)); applySettings(false); m.textContent = "Saved to your repository. Visitors see it in a minute or two."; toast("Saved"); return true; }
+  catch (ex) { fail(ex); return false; }
 }
 function fillForms(){
-  const mo = $("#bdayForm").bMonth;
+  const mo = $("#bdayForm").elements.bMonth;
   if (!mo.options.length) mo.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${new Date(2000, i, 1).toLocaleString(undefined, { month: "long" })}</option>`).join("");
   const b = cfg.birthday, f = $("#bdayForm");
-  f.bEn.checked = b.enabled; f.bConf.checked = b.confetti; f.bMonth.value = b.month; f.bDay.value = b.day; f.bMsg.value = b.message;
+  f.elements.bEn.checked = b.enabled; f.elements.bConf.checked = b.confetti; f.elements.bMonth.value = b.month; f.elements.bDay.value = b.day; f.elements.bMsg.value = b.message;
   const nb = nextBirthday(), t = new Date(), days = Math.round((nb - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5);
   $("#bdayNext").textContent = "Next birthday: " + nb.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) + (days ? ` (in ${days} day${days === 1 ? "" : "s"})` : " (today!)");
-  const g = $("#siteForm"); g.sBon.checked = cfg.banner.on; g.sText.value = cfg.banner.text; g.sLink.value = cfg.banner.link; g.sOpen.checked = cfg.orders.open; g.sNote.value = cfg.orders.note;
+  const g = $("#siteForm"); g.elements.sBon.checked = cfg.banner.on; g.elements.sText.value = cfg.banner.text; g.elements.sLink.value = cfg.banner.link; g.elements.sOpen.checked = cfg.orders.open; g.elements.sNote.value = cfg.orders.note;
   fillWishForm();
 }
 $("#bdayForm").addEventListener("submit", e => {
   e.preventDefault(); const f = e.target;
-  saveCfg(c => ({ ...c, birthday: { enabled: f.bEn.checked, month: Number(f.bMonth.value), day: Math.min(31, Math.max(1, Number(f.bDay.value) || 1)), message: f.bMsg.value.trim() || DEFAULTS.birthday.message, confetti: f.bConf.checked } }), "Update birthday settings");
+  saveCfg(c => ({ ...c, birthday: { enabled: f.elements.bEn.checked, month: Number(f.elements.bMonth.value), day: Math.min(31, Math.max(1, Number(f.elements.bDay.value) || 1)), message: f.elements.bMsg.value.trim() || DEFAULTS.birthday.message, confetti: f.elements.bConf.checked } }), "Update birthday settings");
 });
 $("#bdayTest").addEventListener("click", () => bday.preview());
 $("#bdayStop").addEventListener("click", () => bday.stop());
 $("#siteForm").addEventListener("submit", e => {
   e.preventDefault(); const f = e.target;
-  saveCfg(c => ({ ...c, banner: { on: f.sBon.checked, text: f.sText.value.trim(), link: safeUrl(f.sLink.value.trim()) }, orders: { open: f.sOpen.checked, note: f.sNote.value.trim() } }), "Update announcement and orders");
+  saveCfg(c => ({ ...c, banner: { on: f.elements.sBon.checked, text: f.elements.sText.value.trim(), link: safeUrl(f.elements.sLink.value.trim()) }, orders: { open: f.elements.sOpen.checked, note: f.elements.sNote.value.trim() } }), "Update announcement and orders");
 });
 
 /* mods: remove (hide) or edit Nexus mods; uploaded mods use the normal edit and delete */
@@ -1340,13 +1346,13 @@ $("#modsAdmin").addEventListener("click", e => {
   const h = e.target.closest("[data-nhide]");
   if (h) { const k = h.dataset.nhide; saveCfg(c => { const set = new Set(c.hiddenMods); set.has(k) ? set.delete(k) : set.add(k); return { ...c, hiddenMods: [...set] }; }, "Toggle mod visibility"); return; }
   const ed = e.target.closest("[data-nedit]");
-  if (ed) { const m = allMods(true).find(x => x.key === ed.dataset.nedit); if (!m) return; modEditKey = m.key; const f = $("#modEditForm"); f.mTitle.value = m.title || ""; f.mBy.value = m.by || ""; f.mDesc.value = m.desc || ""; $("#modEditDialog").showModal(); return; }
+  if (ed) { const m = allMods(true).find(x => x.key === ed.dataset.nedit); if (!m) return; modEditKey = m.key; const f = $("#modEditForm"); f.elements.mTitle.value = m.title || ""; f.elements.mBy.value = m.by || ""; f.elements.mDesc.value = m.desc || ""; $("#modEditDialog").showModal(); return; }
   modAction(e);
 });
 $("#modEditForm").addEventListener("submit", e => {
   e.preventDefault(); const f = e.target, k = modEditKey;
   $("#modEditDialog").close();
-  saveCfg(c => ({ ...c, modEdits: { ...c.modEdits, [k]: { title: f.mTitle.value.trim(), by: f.mBy.value.trim(), desc: f.mDesc.value.trim() } } }), "Edit mod text");
+  saveCfg(c => ({ ...c, modEdits: { ...c.modEdits, [k]: { title: f.elements.mTitle.value.trim(), by: f.elements.mBy.value.trim(), desc: f.elements.mDesc.value.trim() } } }), "Edit mod text");
 });
 $("#modReset").addEventListener("click", () => { const k = modEditKey; $("#modEditDialog").close(); saveCfg(c => { const m = { ...c.modEdits }; delete m[k]; return { ...c, modEdits: m }; }, "Reset mod text"); });
 $("#modCancel").addEventListener("click", () => $("#modEditDialog").close());
@@ -1372,13 +1378,13 @@ function endEventEdit(){ editingEvent = null; $("#eventForm").reset(); $("#event
 $("#eventCancel").addEventListener("click", endEventEdit);
 $("#eventForm").addEventListener("submit", async e => {
   e.preventDefault(); const f = e.target, m = $("#setMsg"); m.style.color = ""; m.textContent = "Saving...";
-  const entry = { id: editingEvent || Date.now().toString(36), title: f.eTitle.value.trim(), date: f.eDate.value, time: f.eTime.value.trim(), link: safeUrl(f.eLink.value.trim()), desc: f.eDesc.value.trim() };
+  const entry = { id: editingEvent || Date.now().toString(36), title: f.elements.eTitle.value.trim(), date: f.elements.eDate.value, time: f.elements.eTime.value.trim(), link: safeUrl(f.elements.eLink.value.trim()), desc: f.elements.eDesc.value.trim() };
   try { events = await updateList("events.json", "events", l => [...l.filter(x => x.id !== entry.id), entry], "Event: " + entry.title); endEventEdit(); renderEvents(); m.textContent = "Event saved. The live site updates in a minute or two."; }
-  catch (ex) { m.style.color = "#b3123f"; m.textContent = ex.message; }
+  catch (ex) { fail(ex); }
 });
 $("#eventsAdmin").addEventListener("click", async e => {
   const ed = e.target.closest("[data-eedit]"), del = e.target.closest("[data-edel]");
-  if (ed) { const v = events.find(x => x.id === ed.dataset.eedit); if (!v) return; editingEvent = v.id; const f = $("#eventForm"); f.eTitle.value = v.title; f.eDate.value = v.date; f.eTime.value = v.time || ""; f.eLink.value = v.link || ""; f.eDesc.value = v.desc || ""; $("#eventBtn").textContent = "Save changes"; $("#eventCancel").hidden = false; f.scrollIntoView({ block: "center" }); return; }
+  if (ed) { const v = events.find(x => x.id === ed.dataset.eedit); if (!v) return; editingEvent = v.id; const f = $("#eventForm"); f.elements.eTitle.value = v.title; f.elements.eDate.value = v.date; f.elements.eTime.value = v.time || ""; f.elements.eLink.value = v.link || ""; f.elements.eDesc.value = v.desc || ""; $("#eventBtn").textContent = "Save changes"; $("#eventCancel").hidden = false; f.scrollIntoView({ block: "center" }); return; }
   if (del) { const v = events.find(x => x.id === del.dataset.edel); if (!v || !confirm('Delete "' + v.title + '"?')) return;
     try { events = await updateList("events.json", "events", l => l.filter(x => x.id !== v.id), "Remove event: " + v.title); renderEvents(); toast("Deleted"); } catch (ex) { toast(ex.message); } }
 });
@@ -1407,24 +1413,24 @@ function renderWishes(){
     return `<li><span class="grow"><b>${esc(w.name)}</b>: ${esc(w.text)}<br><span class="note">${gone ? "Removed by you" : bad ? "Hidden by the word filter" : "Showing"}</span></span><button class="linkbtn${gone ? "" : " danger"}" type="button" data-wish="${esc(w.id)}">${gone ? "Restore" : "Remove"}</button></li>`; }).join("") || '<li class="note">No wishes collected yet.</li>';
 }
 function fillWishForm(){
-  const f = $("#wishCfgForm"); f.cOn.checked = cfg.wishes.on; f.cHook.value = cfg.wishes.webhook; f.cLinks.checked = cfg.wishes.blockLinks !== false; f.cWords.value = (cfg.wishes.words || []).join("\n");
+  const f = $("#wishCfgForm"); f.elements.cOn.checked = cfg.wishes.on; f.elements.cHook.value = cfg.wishes.webhook; f.elements.cLinks.checked = cfg.wishes.blockLinks !== false; f.elements.cWords.value = (cfg.wishes.words || []).join("\n");
 }
-const wishOpts = () => { const f = $("#wishCfgForm"); return { blockLinks: f.cLinks.checked, words: f.cWords.value.split("\n") }; };
-$("#wishCfgForm").cTest.addEventListener("input", e => { const v = e.target.value; $("#wishTestOut").textContent = v ? (blocked(v, wishOpts()) ? "Would be blocked." : "Would be allowed.") : ""; });
+const wishOpts = () => { const f = $("#wishCfgForm"); return { blockLinks: f.elements.cLinks.checked, words: f.elements.cWords.value.split("\n") }; };
+$("#wishCfgForm").elements.cTest.addEventListener("input", e => { const v = e.target.value; $("#wishTestOut").textContent = v ? (blocked(v, wishOpts()) ? "Would be blocked." : "Would be allowed.") : ""; });
 $("#wishCfgForm").addEventListener("submit", e => {
-  e.preventDefault(); const f = e.target, hook = f.cHook.value.trim();
+  e.preventDefault(); const f = e.target, hook = f.elements.cHook.value.trim();
   if (hook && !/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(hook)) { $("#setMsg").style.color = "#b3123f"; $("#setMsg").textContent = "That doesn't look like a Discord webhook URL."; return; }
-  saveCfg(c => ({ ...c, wishes: { on: f.cOn.checked, webhook: hook, blockLinks: f.cLinks.checked, words: [...new Set(f.cWords.value.split("\n").map(x => x.trim()).filter(Boolean))].slice(0, 500) } }), "Update wishes settings");
+  saveCfg(c => ({ ...c, wishes: { on: f.elements.cOn.checked, webhook: hook, blockLinks: f.elements.cLinks.checked, words: [...new Set(f.elements.cWords.value.split("\n").map(x => x.trim()).filter(Boolean))].slice(0, 500) } }), "Update wishes settings");
 });
 $("#wishesAdmin").addEventListener("click", e => {
   const b = e.target.closest("[data-wish]"); if (!b) return; const id = b.dataset.wish;
   saveCfg(c => { const set = new Set(c.removedWishes); set.has(id) ? set.delete(id) : set.add(id); return { ...c, removedWishes: [...set] }; }, "Toggle wish");
 });
 $("#wishForm").addEventListener("submit", async e => {
-  e.preventDefault(); const f = e.target, m = $("#wishMsg"); m.style.color = ""; if (f.wTrap.value) return;
+  e.preventDefault(); const f = e.target, m = $("#wishMsg"); m.style.color = ""; if (f.elements.wTrap.value) return;
   let last = 0; try { last = Number(localStorage.getItem("clipover-wish-t")) || 0; } catch {}
   if (Date.now() - last < 60000) { m.textContent = "Please wait a minute before sending another."; return; }
-  const name = f.wName.value.trim().replace(/[:\n]/g, " ").slice(0, 30), text = f.wText.value.trim().replace(/\n+/g, " ");
+  const name = f.elements.wName.value.trim().replace(/[:\n]/g, " ").slice(0, 30), text = f.elements.wText.value.trim().replace(/\n+/g, " ");
   if (!text) return;
   if (blocked(name + " " + text)) { m.style.color = "#a8222f"; m.textContent = "Sorry, that message can't be posted. Try rewording it."; return; }
   if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(cfg.wishes.webhook)) { m.textContent = "Wishes aren't taking messages right now."; return; }
