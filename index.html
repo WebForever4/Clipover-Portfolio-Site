@@ -135,6 +135,15 @@
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:3px;font-weight:600;font-size:15px;z-index:50;display:none}
   .toast.on{display:block}
 
+  .sets{display:grid;gap:14px;max-width:700px}
+  details{border:1px solid var(--line);padding:12px 16px}
+  summary{font-weight:700;cursor:pointer}
+  details[open] summary{margin-bottom:10px}
+  .mlist{list-style:none;margin:12px 0 0;padding:0}
+  .mlist li{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--line);padding:8px 0}
+  .mlist .grow{flex:1;min-width:160px}
+  .notice{background:var(--ink);color:#fff;padding:8px 24px;text-align:center;font-size:15px}
+  .notice a{color:#fff}
   /* birthday (November 26) */
   .bday{background:var(--pad);border-bottom:2px solid var(--ink);padding:10px 0}
   .bday .wrap{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
@@ -171,18 +180,21 @@
       <a class="link" href="#mods">Mods</a>
       <a class="link" href="#games">Games</a>
       <a class="link" href="#updates" id="navUpdates" hidden>Updates</a>
+      <a class="link" href="#events" id="navEvents" hidden>Events</a>
       <a class="link" href="#orders">Orders</a>
       <a class="link" href="#community">Discord</a>
       <a class="link" href="#support">Support</a>
       <a class="link" href="#admin" id="navAdmin" hidden>Upload</a>
+      <a class="link" href="#settings" id="navSettings" hidden>Settings</a>
     </nav>
     <button class="linkbtn" id="signInBtn" type="button" hidden>Sign in</button>
   </div>
 </header>
 
+<div class="notice" id="notice" hidden></div>
 <div class="bday" id="bday" hidden>
   <div class="wrap">
-    <span><b>Happy Birthday, Clipover!</b> Today is the big day. Wish them a good one on the <a href="#community">Discord</a>.</span>
+    <span><span id="bdayText"></span> <a href="#community">Say happy birthday on the Discord.</a></span>
     <button class="btn small second" id="bdayConfetti" type="button">Throw confetti</button>
   </div>
 </div>
@@ -284,6 +296,64 @@
       </form>
     </section>
 
+    <section id="events">
+      <h2>Events</h2>
+      <p class="sub">What is coming up.</p>
+      <ul class="updates" id="eventList"></ul>
+    </section>
+
+    <section id="settings">
+      <h2>Settings</h2>
+      <p class="sub">Only you can see this. Changes are saved to your repository and the live site updates in a minute or two.</p>
+      <div class="sets">
+        <details open><summary>Mods</summary>
+          <p class="note">Nexus mods sync on their own. Remove one to take it off the site (it stays on Nexus), or edit how it appears. Mods you uploaded can be edited or deleted.</p>
+          <ul class="mlist" id="modsAdmin"></ul>
+        </details>
+        <details><summary>Events</summary>
+          <form id="eventForm">
+            <label>Title <input name="eTitle" required maxlength="80"></label>
+            <label>Date <input name="eDate" type="date" required></label>
+            <label>Time (optional) <input name="eTime" maxlength="30" placeholder="e.g. 6pm AEDT"></label>
+            <label>Link (optional) <input name="eLink" type="url" placeholder="https://"></label>
+            <label>Description (optional) <textarea name="eDesc" maxlength="300"></textarea></label>
+            <div class="row"><button class="btn" type="submit" id="eventBtn">Add event</button><button class="btn second" type="button" id="eventCancel" hidden>Cancel edit</button></div>
+          </form>
+          <ul class="mlist" id="eventsAdmin"></ul>
+        </details>
+        <details><summary>Birthday</summary>
+          <form id="bdayForm">
+            <label class="check"><input type="checkbox" name="bEn"> Celebrate on the birthday</label>
+            <div class="row"><label>Month <select name="bMonth"></select></label><label>Day <input name="bDay" type="number" min="1" max="31"></label></div>
+            <label>Banner message <input name="bMsg" maxlength="140"></label>
+            <label class="check"><input type="checkbox" name="bConf"> Confetti</label>
+            <p class="note" id="bdayNext"></p>
+            <div class="row"><button class="btn" type="submit">Save</button><button class="btn second" type="button" id="bdayTest">Test it now</button><button class="btn second" type="button" id="bdayStop">Stop test</button></div>
+          </form>
+        </details>
+        <details><summary>Announcement and orders</summary>
+          <form id="siteForm">
+            <label class="check"><input type="checkbox" name="sBon"> Show an announcement bar on every page</label>
+            <label>Announcement text <input name="sText" maxlength="160"></label>
+            <label>Announcement link (optional) <input name="sLink" type="url" placeholder="https://"></label>
+            <label class="check"><input type="checkbox" name="sOpen"> Orders are open</label>
+            <label>Message when orders are closed (optional) <input name="sNote" maxlength="160" placeholder="Back soon"></label>
+            <div><button class="btn" type="submit">Save</button></div>
+          </form>
+        </details>
+        <details><summary>This device and backup</summary>
+          <p class="note">Signed in as <strong id="setWho"></strong>.</p>
+          <div class="row">
+            <button class="btn second" type="button" id="setSignOut">Sign out</button>
+            <button class="btn second" type="button" id="setForget">Forget saved sign-in</button>
+            <button class="btn second" type="button" id="setHide">Sign out and hide the Sign in button here</button>
+            <button class="btn second" type="button" id="setBackup">Download a backup</button>
+          </div>
+        </details>
+      </div>
+      <p class="err" id="setMsg" role="status"></p>
+    </section>
+
     <section id="orders">
       <h2>Orders</h2>
       <p class="sub">Tell me what you want built. We agree on scope and price before I start.</p>
@@ -298,6 +368,7 @@
         </div>
       </div>
 
+      <p class="err" id="ordersClosed" hidden></p>
       <form id="orderForm">
         <label>What do you need?
           <select name="type" id="orderType">
@@ -408,6 +479,16 @@
       <button class="btn" type="submit" id="siGo">Sign in</button>
       <button class="btn second" type="button" id="siCancel">Cancel</button>
     </div>
+  </form>
+</dialog>
+
+<dialog id="modEditDialog">
+  <form method="dialog" id="modEditForm">
+    <h3>Edit how this mod appears</h3>
+    <label>Title <input name="mTitle" required maxlength="80"></label>
+    <label>Credit line <input name="mBy" maxlength="80"></label>
+    <label>Description <textarea name="mDesc" maxlength="500"></textarea></label>
+    <div class="row"><button class="btn" type="submit">Save</button><button class="btn second" type="button" id="modReset">Back to Nexus text</button><button class="btn second" type="button" id="modCancel">Cancel</button></div>
   </form>
 </dialog>
 
@@ -607,6 +688,18 @@ async function updateList(file, key, mutate, message){
   }
   throw lastErr;
 }
+async function updateObj(file, mutate, message){
+  let lastErr;
+  for (let i = 0; i < 4; i++) {
+    const { data, sha } = await readList(file);
+    const next = mutate(data && typeof data === "object" ? data : {});
+    try {
+      await gh(cp(file), { method: "PUT", body: JSON.stringify({ message, content: b64FromText(JSON.stringify(next, null, 2) + "\n"), branch: S.branch, ...(sha ? { sha } : {}) }) });
+      return next;
+    } catch (e) { lastErr = e; if (e.status !== 409 && e.status !== 422) throw e; await new Promise(r => setTimeout(r, 1200 * (i + 1))); }
+  }
+  throw lastErr;
+}
 const updateWorks = (mutate, message) => updateList("works.json", "works", mutate, message);
 const updateMods = (mutate, message) => updateList("mods.json", "mods", mutate, message);
 const byNewest = list => list.slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -615,6 +708,8 @@ const byNewest = list => list.slice().sort((a, b) => (b.date || "").localeCompar
 const dlg = $("#signInDialog");
 function setSignedIn(on){
   $("#navAdmin").hidden = !on;
+  $("#navSettings").hidden = !on;
+  $("#setWho").textContent = on ? S.login + " (" + S.owner + "/" + S.repo + ")" : "";
   $("#signInBtn").textContent = on ? "Signed in" : "Sign in";
   if (on) $("#whoami").textContent = S.login;
   renderWorks();
@@ -696,7 +791,8 @@ $("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); se
    or click the logo 5 times fast, or once you have signed in or saved a sign-in there. */
 const ownerFlag = {
   get(){ try { return localStorage.getItem("clipover-owner") === "1"; } catch { return false; } },
-  set(){ try { localStorage.setItem("clipover-owner", "1"); } catch {} }
+  set(){ try { localStorage.setItem("clipover-owner", "1"); } catch {} },
+  clear(){ try { localStorage.removeItem("clipover-owner"); } catch {} }
 };
 function showSignIn(){ ownerFlag.set(); $("#signInBtn").hidden = false; }
 if (new URLSearchParams(location.search).has("admin")) ownerFlag.set();
@@ -1033,16 +1129,21 @@ let modStats = {};
 const nexusKey = url => { const m = /nexusmods\.com\/([^/]+)\/mods\/(\d+)/.exec(url || ""); return m ? m[1] + "/" + m[2] : ""; };
 let nexusMods = [];
 /* Order: mods you added by hand, then everything synced from Nexus (newest first), then the built-in list as a fallback. */
-function allMods(){
+function allMods(all){
   const seen = new Set(), out = [];
-  const add = m => { const k = nexusKey(m.url); if (k && seen.has(k)) return; if (k) seen.add(k); out.push(m); };
-  byNewest(uploadedMods).forEach(add);
+  const add = (m, own) => {
+    const k = nexusKey(m.url); if (k && seen.has(k)) return; if (k) seen.add(k);
+    if (own) { out.push(m); return; }
+    const hidden = cfg.hiddenMods.includes(k); if (hidden && !all) return;
+    out.push({ ...m, ...(cfg.modEdits[k] || {}), key: k, hidden });
+  };
+  byNewest(uploadedMods).forEach(m => add(m, true));
   nexusMods.forEach(n => {
     const h = MODS.find(x => nexusKey(x.url) === n.key);
     add({ title: n.title, by: (h && h.by) || (n.author ? "By " + n.author : ""), desc: n.desc || (h && h.desc) || "", url: n.url, image: n.image,
       downloads: n.downloads, endorsements: n.endorsements, version: n.version, updated: n.updated });
   });
-  MODS.forEach(add);
+  MODS.forEach(m => add(m));
   return out;
 }
 function renderMods(){
@@ -1056,6 +1157,7 @@ function renderMods(){
     const thumb = m.image ? `<div class="thumb"><img src="${esc(m.image)}" alt="" loading="lazy" onerror="this.parentNode.remove()"></div>` : "";
     return `<li class="card modcard">${thumb}<div class="body">${m.by ? `<p class="meta">${esc(m.by)}</p>` : ""}<h3>${esc(m.title)}</h3>${m.desc ? `<p class="desc">${esc(m.desc)}</p>` : ""}${nums}<p class="acts">${open}<button class="btn small" type="button" data-addition="${i}">Add an addition to this mod</button>${del}</p></div></li>`;
   }).join("");
+  if (S) renderModsAdmin();
 }
 async function loadModStats(){
   try {
@@ -1070,7 +1172,7 @@ async function loadMods(){
   } catch {}
   renderMods();
 }
-$("#modGrid").addEventListener("click", async e => {
+const modAction = async e => {
   const em = e.target.closest("[data-editmod]");
   if (em && S) { const m = uploadedMods.find(x => x.id === em.dataset.editmod); if (m) startEdit("mods", m); return; }
   const d = e.target.closest("[data-delmod]");
@@ -1092,41 +1194,160 @@ $("#modGrid").addEventListener("click", async e => {
   box.value = `Addition to "${m.title}"${safeUrl(m.url) ? " (" + m.url + ")" : ""}\n\nWhat I'd like added: `;
   location.hash = "orders";
   setTimeout(() => { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }, 80);
-});
+};
+$("#modGrid").addEventListener("click", modAction);
 
-/* ---------- birthday: November 26 (add ?birthday=1 to the address to preview, ?birthday=0 to hide) ---------- */
-(function birthday(){
-  const q = new URLSearchParams(location.search).get("birthday"), d = new Date();
-  if (!(q === "1" || (q !== "0" && d.getMonth() === 10 && d.getDate() === 26))) return;
-  document.body.classList.add("bday-on");
-  $("#bday").hidden = false;
-  document.title = "Happy Birthday Clipover!";
-  const cv = $("#confetti"), cx = cv.getContext("2d"), colors = ["#2447c5", "#f6efb4", "#22252b", "#e8505b", "#3bb273", "#f5a623"];
-  let parts = [], raf = 0;
+/* ---------- settings (settings.json) ---------- */
+const DEFAULTS = { birthday: { enabled: true, month: 11, day: 26, message: "Happy Birthday, Clipover! Today is the big day.", confetti: true }, banner: { on: false, text: "", link: "" }, orders: { open: true, note: "" }, hiddenMods: [], modEdits: {} };
+const mergeCfg = d => { d = d || {}; return { ...d, birthday: { ...DEFAULTS.birthday, ...(d.birthday || {}) }, banner: { ...DEFAULTS.banner, ...(d.banner || {}) }, orders: { ...DEFAULTS.orders, ...(d.orders || {}) }, hiddenMods: d.hiddenMods || [], modEdits: d.modEdits || {} }; };
+let cfg = mergeCfg({});
+const ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const fmtDay = ds => new Date(ds + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+function nextBirthday(){
+  const t = new Date(), today = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  let d = new Date(t.getFullYear(), cfg.birthday.month - 1, cfg.birthday.day);
+  if (d < today) d = new Date(t.getFullYear() + 1, cfg.birthday.month - 1, cfg.birthday.day);
+  return d;
+}
+
+/* ---------- birthday (default November 26; ?birthday=1 previews, ?birthday=0 hides) ---------- */
+const bday = (function(){
+  const cv = $("#confetti"), cx = cv.getContext("2d"), colors = ["#2447c5", "#f6efb4", "#22252b", "#e8505b", "#3bb273", "#f5a623"], baseTitle = document.title;
+  let parts = [], raf = 0, previewing = false;
   const size = () => { cv.width = innerWidth; cv.height = innerHeight; };
   size(); addEventListener("resize", size);
   function tick(){
     cx.clearRect(0, 0, cv.width, cv.height);
     parts = parts.filter(p => p.y < cv.height + 30);
-    for (const p of parts) {
-      p.x += p.vx + Math.sin(p.y / 30); p.y += p.vy; p.r += p.vr;
-      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cx.restore();
-    }
+    for (const p of parts) { p.x += p.vx + Math.sin(p.y / 30); p.y += p.vy; p.r += p.vr; cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cx.restore(); }
     raf = parts.length ? requestAnimationFrame(tick) : 0;
   }
   function burst(n){
-    for (let i = 0; i < n; i++) parts.push({ x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * .4, vx: (Math.random() - .5) * 3, vy: 2 + Math.random() * 3,
-      r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, w: 6 + Math.random() * 6, h: 8 + Math.random() * 8, c: colors[i % colors.length] });
+    for (let i = 0; i < n; i++) parts.push({ x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * .4, vx: (Math.random() - .5) * 3, vy: 2 + Math.random() * 3, r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, w: 6 + Math.random() * 6, h: 8 + Math.random() * 8, c: colors[i % colors.length] });
     if (!raf) raf = requestAnimationFrame(tick);
   }
+  function isToday(){
+    const q = new URLSearchParams(location.search).get("birthday"), d = new Date(), b = cfg.birthday;
+    return q === "1" || (q !== "0" && b.enabled && d.getMonth() === b.month - 1 && d.getDate() === b.day);
+  }
+  function set(on, loud){
+    document.body.classList.toggle("bday-on", on); $("#bday").hidden = !on;
+    document.title = on ? "Happy Birthday Clipover!" : baseTitle;
+    if (on) { $("#bdayText").textContent = cfg.birthday.message; if (loud && cfg.birthday.confetti && !matchMedia("(prefers-reduced-motion: reduce)").matches) burst(160); }
+  }
   $("#bdayConfetti").addEventListener("click", () => burst(140));
-  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) burst(160);
+  return { apply(loud){ if (!previewing) set(isToday(), loud); }, preview(){ previewing = true; set(true, true); }, stop(){ previewing = false; set(isToday(), false); } };
 })();
 
+function applySettings(loud){
+  const n = $("#notice"); n.hidden = !(cfg.banner.on && cfg.banner.text);
+  n.innerHTML = esc(cfg.banner.text) + (safeUrl(cfg.banner.link) ? ` <a href="${esc(cfg.banner.link)}" target="_blank" rel="noopener">Learn more</a>` : "");
+  const closed = !cfg.orders.open;
+  $("#ordersClosed").hidden = !closed; $("#ordersClosed").textContent = cfg.orders.note || "Orders are closed right now."; $("#orderBtn").disabled = closed;
+  bday.apply(loud); renderMods(); renderEvents(); fillForms(); showTab(false);
+}
+$("#orderForm").addEventListener("submit", e => { if (!cfg.orders.open) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+async function loadSettings(){
+  try { const r = await fetch("settings.json?" + Date.now()); if (r.ok) cfg = mergeCfg(await r.json()); } catch {}
+  applySettings(true);
+}
+async function saveCfg(fn, msg){
+  const m = $("#setMsg"); m.style.color = ""; m.textContent = "Saving...";
+  try { cfg = mergeCfg(await updateObj("settings.json", cur => fn(mergeCfg(cur)), msg)); applySettings(false); m.textContent = "Saved. The live site updates in a minute or two."; return true; }
+  catch (ex) { m.style.color = "#b3123f"; m.textContent = ex.message; return false; }
+}
+function fillForms(){
+  const mo = $("#bdayForm").bMonth;
+  if (!mo.options.length) mo.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${new Date(2000, i, 1).toLocaleString(undefined, { month: "long" })}</option>`).join("");
+  const b = cfg.birthday, f = $("#bdayForm");
+  f.bEn.checked = b.enabled; f.bConf.checked = b.confetti; f.bMonth.value = b.month; f.bDay.value = b.day; f.bMsg.value = b.message;
+  const nb = nextBirthday(), t = new Date(), days = Math.round((nb - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5);
+  $("#bdayNext").textContent = "Next birthday: " + nb.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) + (days ? ` (in ${days} day${days === 1 ? "" : "s"})` : " (today!)");
+  const g = $("#siteForm"); g.sBon.checked = cfg.banner.on; g.sText.value = cfg.banner.text; g.sLink.value = cfg.banner.link; g.sOpen.checked = cfg.orders.open; g.sNote.value = cfg.orders.note;
+}
+$("#bdayForm").addEventListener("submit", e => {
+  e.preventDefault(); const f = e.target;
+  saveCfg(c => ({ ...c, birthday: { enabled: f.bEn.checked, month: Number(f.bMonth.value), day: Math.min(31, Math.max(1, Number(f.bDay.value) || 1)), message: f.bMsg.value.trim() || DEFAULTS.birthday.message, confetti: f.bConf.checked } }), "Update birthday settings");
+});
+$("#bdayTest").addEventListener("click", () => bday.preview());
+$("#bdayStop").addEventListener("click", () => bday.stop());
+$("#siteForm").addEventListener("submit", e => {
+  e.preventDefault(); const f = e.target;
+  saveCfg(c => ({ ...c, banner: { on: f.sBon.checked, text: f.sText.value.trim(), link: safeUrl(f.sLink.value.trim()) }, orders: { open: f.sOpen.checked, note: f.sNote.value.trim() } }), "Update announcement and orders");
+});
+
+/* mods: remove (hide) or edit Nexus mods; uploaded mods use the normal edit and delete */
+function renderModsAdmin(){
+  $("#modsAdmin").innerHTML = allMods(true).map(m => {
+    const own = uploadedMods.includes(m);
+    const btns = own ? `<button class="linkbtn" type="button" data-editmod="${esc(m.id)}">Edit</button><button class="linkbtn danger" type="button" data-delmod="${esc(m.id)}">Delete</button>`
+      : `<button class="linkbtn" type="button" data-nedit="${esc(m.key)}">Edit</button><button class="linkbtn${m.hidden ? "" : " danger"}" type="button" data-nhide="${esc(m.key)}">${m.hidden ? "Show again" : "Remove from site"}</button>`;
+    return `<li><span class="grow"><b>${esc(m.title)}</b><br><span class="note">${own ? "Uploaded by you" : m.hidden ? "Hidden from the site" : "Synced from Nexus"}</span></span>${btns}</li>`;
+  }).join("") || '<li class="note">No mods yet.</li>';
+}
+let modEditKey = "";
+$("#modsAdmin").addEventListener("click", e => {
+  const h = e.target.closest("[data-nhide]");
+  if (h) { const k = h.dataset.nhide; saveCfg(c => { const set = new Set(c.hiddenMods); set.has(k) ? set.delete(k) : set.add(k); return { ...c, hiddenMods: [...set] }; }, "Toggle mod visibility"); return; }
+  const ed = e.target.closest("[data-nedit]");
+  if (ed) { const m = allMods(true).find(x => x.key === ed.dataset.nedit); if (!m) return; modEditKey = m.key; const f = $("#modEditForm"); f.mTitle.value = m.title || ""; f.mBy.value = m.by || ""; f.mDesc.value = m.desc || ""; $("#modEditDialog").showModal(); return; }
+  modAction(e);
+});
+$("#modEditForm").addEventListener("submit", e => {
+  e.preventDefault(); const f = e.target, k = modEditKey;
+  $("#modEditDialog").close();
+  saveCfg(c => ({ ...c, modEdits: { ...c.modEdits, [k]: { title: f.mTitle.value.trim(), by: f.mBy.value.trim(), desc: f.mDesc.value.trim() } } }), "Edit mod text");
+});
+$("#modReset").addEventListener("click", () => { const k = modEditKey; $("#modEditDialog").close(); saveCfg(c => { const m = { ...c.modEdits }; delete m[k]; return { ...c, modEdits: m }; }, "Reset mod text"); });
+$("#modCancel").addEventListener("click", () => $("#modEditDialog").close());
+
+/* ---------- events (events.json) ---------- */
+let events = [], hasEvents = false, editingEvent = null;
+async function loadEvents(){
+  try { const r = await fetch("events.json?" + Date.now()); if (r.ok) events = (await r.json()).events || []; } catch {}
+  renderEvents();
+}
+function renderEvents(){
+  const today = ymd(new Date()), list = events.slice();
+  if (cfg.birthday.enabled) list.push({ id: "bday", title: "Clipover's birthday", date: ymd(nextBirthday()), desc: "Join the Discord and say happy birthday." });
+  const up = list.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const past = events.filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  hasEvents = up.length + past.length > 0;
+  const li = (e, old) => `<li${old ? ' style="opacity:.65"' : ""}><time>${esc(fmtDay(e.date))}${e.time ? ", " + esc(e.time) : ""}</time><div class="text"><b>${esc(e.title)}</b>${e.desc ? "<br>" + esc(e.desc) : ""}</div>${safeUrl(e.link) ? `<a class="more" href="${esc(e.link)}" target="_blank" rel="noopener">Details</a>` : ""}</li>`;
+  $("#eventList").innerHTML = up.map(e => li(e)).join("") + past.map(e => li(e, 1)).join("") || '<li class="empty">No events yet.</li>';
+  $("#navEvents").hidden = !hasEvents;
+  $("#eventsAdmin").innerHTML = events.slice().sort((a, b) => a.date.localeCompare(b.date)).map(e => `<li><span class="grow"><b>${esc(e.title)}</b><br><span class="note">${esc(fmtDay(e.date))}</span></span><button class="linkbtn" type="button" data-eedit="${esc(e.id)}">Edit</button><button class="linkbtn danger" type="button" data-edel="${esc(e.id)}">Delete</button></li>`).join("") || '<li class="note">No events yet.</li>';
+}
+function endEventEdit(){ editingEvent = null; $("#eventForm").reset(); $("#eventBtn").textContent = "Add event"; $("#eventCancel").hidden = true; }
+$("#eventCancel").addEventListener("click", endEventEdit);
+$("#eventForm").addEventListener("submit", async e => {
+  e.preventDefault(); const f = e.target, m = $("#setMsg"); m.style.color = ""; m.textContent = "Saving...";
+  const entry = { id: editingEvent || Date.now().toString(36), title: f.eTitle.value.trim(), date: f.eDate.value, time: f.eTime.value.trim(), link: safeUrl(f.eLink.value.trim()), desc: f.eDesc.value.trim() };
+  try { events = await updateList("events.json", "events", l => [...l.filter(x => x.id !== entry.id), entry], "Event: " + entry.title); endEventEdit(); renderEvents(); m.textContent = "Event saved. The live site updates in a minute or two."; }
+  catch (ex) { m.style.color = "#b3123f"; m.textContent = ex.message; }
+});
+$("#eventsAdmin").addEventListener("click", async e => {
+  const ed = e.target.closest("[data-eedit]"), del = e.target.closest("[data-edel]");
+  if (ed) { const v = events.find(x => x.id === ed.dataset.eedit); if (!v) return; editingEvent = v.id; const f = $("#eventForm"); f.eTitle.value = v.title; f.eDate.value = v.date; f.eTime.value = v.time || ""; f.eLink.value = v.link || ""; f.eDesc.value = v.desc || ""; $("#eventBtn").textContent = "Save changes"; $("#eventCancel").hidden = false; f.scrollIntoView({ block: "center" }); return; }
+  if (del) { const v = events.find(x => x.id === del.dataset.edel); if (!v || !confirm('Delete "' + v.title + '"?')) return;
+    try { events = await updateList("events.json", "events", l => l.filter(x => x.id !== v.id), "Remove event: " + v.title); renderEvents(); toast("Deleted"); } catch (ex) { toast(ex.message); } }
+});
+
+/* ---------- this device and backup ---------- */
+$("#setSignOut").addEventListener("click", () => $("#signOutBtn").click());
+$("#setForget").addEventListener("click", () => { vault.clear(); toast("Saved sign-in removed from this device"); });
+$("#setHide").addEventListener("click", () => { vault.clear(); ownerFlag.clear(); $("#signOutBtn").click(); $("#signInBtn").hidden = true; });
+$("#setBackup").addEventListener("click", async () => {
+  try {
+    const out = {}; for (const f of ["works.json", "mods.json", "events.json", "settings.json"]) out[f] = (await readList(f)).data;
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" })); a.download = "clipover-backup-" + ymd(new Date()) + ".json"; a.click();
+  } catch (ex) { toast(ex.message); }
+});
+
 /* ---------- tabs: one page at a time, chosen by the link (#works, #orders ...) ---------- */
-const TABS = ["works", "mods", "games", "updates", "orders", "community", "support", "admin"];
+const TABS = ["works", "mods", "games", "updates", "events", "orders", "community", "support", "admin", "settings"];
 let hasUpdates = false;
-const tabAllowed = id => TABS.includes(id) && (id !== "updates" || hasUpdates) && (id !== "admin" || !!S);
+const tabAllowed = id => TABS.includes(id) && (id !== "updates" || hasUpdates) && (id !== "admin" || !!S) && (id !== "settings" || !!S) && (id !== "events" || hasEvents);
 function showTab(scroll){
   let id = location.hash.slice(1);
   if (!tabAllowed(id)) id = "works";
@@ -1151,6 +1372,8 @@ renderMods();
 loadWorks();
 loadMods();
 loadModStats();
+loadSettings();
+loadEvents();
 loadUpdates();
 syncUploadForm();
 if (S) setSignedIn(true); else showTab(false);
