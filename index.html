@@ -135,6 +135,15 @@
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:3px;font-weight:600;font-size:15px;z-index:50;display:none}
   .toast.on{display:block}
 
+  /* birthday (November 26) */
+  .bday{background:var(--pad);border-bottom:2px solid var(--ink);padding:10px 0}
+  .bday .wrap{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  #confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
+  .bday-on .stage{background:linear-gradient(135deg,#f6efb4,#ffd6e0 55%,#cfe0ff)}
+  .vault{display:grid;gap:12px;border-bottom:1px solid var(--line);padding-bottom:16px}
+  .check{display:flex;align-items:center;gap:8px;font-weight:600}
+  .check input{width:auto}
+
   @media (max-width:760px){
     body{font-size:16px}
     .nav .wrap{flex-wrap:wrap;gap:0 14px;min-height:0;padding:0 16px}
@@ -171,6 +180,14 @@
   </div>
 </header>
 
+<div class="bday" id="bday" hidden>
+  <div class="wrap">
+    <span><b>Happy Birthday, Clipover!</b> Today is the big day. Wish them a good one on the <a href="#community">Discord</a>.</span>
+    <button class="btn small second" id="bdayConfetti" type="button">Throw confetti</button>
+  </div>
+</div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
 <main id="top">
   <div class="wrap hero" id="home">
     <h1 class="sr">Clipover</h1>
@@ -194,7 +211,7 @@
 
     <section id="mods">
       <h2>Mods</h2>
-      <p class="sub">People Playground mods I've made or worked on, all on Nexus Mods. Want something added to one? Use the button on its card and the order form fills itself in.</p>
+      <p class="sub">People Playground mods I've made or worked on, pulled straight from Nexus Mods, so new uploads and updated numbers show up here on their own. Want something added to one? Use the button on its card and the order form fills itself in.</p>
       <ul class="grid" id="modGrid"></ul>
     </section>
 
@@ -362,7 +379,17 @@
 <dialog id="signInDialog">
   <form method="dialog" id="signInForm">
     <h3>Sign in</h3>
-    <p class="note">Sign in with a GitHub access token for your repository. It stays in this browser tab and is only sent to GitHub.</p>
+    <div class="vault" id="vaultBox" hidden>
+      <p class="note">This device has a saved sign-in. Enter your passphrase to unlock it.</p>
+      <label>Passphrase
+        <input id="siPass" type="password" autocomplete="current-password">
+      </label>
+      <div class="row">
+        <button class="btn" type="button" id="siUnlock">Unlock</button>
+        <button class="linkbtn danger" type="button" id="siForget">Forget saved sign-in</button>
+      </div>
+    </div>
+    <p class="note">Or sign in with a GitHub access token for your repository. It stays in this browser tab and is only sent to GitHub.</p>
     <label>Repository owner
       <input id="siOwner" required autocomplete="off">
     </label>
@@ -371,6 +398,10 @@
     </label>
     <label>GitHub token
       <input id="siToken" type="password" required autocomplete="off">
+    </label>
+    <label class="check"><input type="checkbox" id="siRemember"> Save on this device so next time I only need a passphrase</label>
+    <label id="siNewPassWrap" hidden>Choose a passphrase (6+ characters)
+      <input id="siNewPass" type="password" autocomplete="new-password" minlength="6">
     </label>
     <p class="err" id="siErr" role="alert"></p>
     <div class="row">
@@ -590,30 +621,75 @@ function setSignedIn(on){
   renderMods();
   showTab(false);
 }
+/* Optional saved sign-in: the token is encrypted with a passphrase (PBKDF2 + AES-GCM) before it is stored on this device. */
+const vault = {
+  K: "clipover-vault",
+  has(){ try { return !!localStorage.getItem(this.K); } catch { return false; } },
+  clear(){ try { localStorage.removeItem(this.K); } catch {} },
+  enc: b => btoa(String.fromCharCode(...new Uint8Array(b))),
+  dec: t => Uint8Array.from(atob(t), c => c.charCodeAt(0)),
+  async key(pass, salt){
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pass), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  },
+  async save(cand, pass){
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await this.key(pass, salt), new TextEncoder().encode(JSON.stringify(cand)));
+    localStorage.setItem(this.K, JSON.stringify({ s: this.enc(salt), i: this.enc(iv), d: this.enc(ct) }));
+  },
+  async open(pass){
+    const v = JSON.parse(localStorage.getItem(this.K));
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: this.dec(v.i) }, await this.key(pass, this.dec(v.s)), this.dec(v.d));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+};
+const syncVaultUi = () => { $("#vaultBox").hidden = !vault.has(); };
+$("#siRemember").addEventListener("change", e => { $("#siNewPassWrap").hidden = !e.target.checked; });
 $("#signInBtn").addEventListener("click", () => {
   if (S) { location.hash = "admin"; return; }
   const g = guessRepo();
   $("#siOwner").value = g.owner; $("#siRepo").value = g.repo; $("#siToken").value = ""; $("#siErr").textContent = "";
+  $("#siPass").value = ""; $("#siNewPass").value = ""; $("#siRemember").checked = false; $("#siNewPassWrap").hidden = true;
+  syncVaultUi();
   dlg.showModal();
 });
 $("#siCancel").addEventListener("click", () => dlg.close());
-$("#signInForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  const go = $("#siGo"), err = $("#siErr");
-  go.disabled = true; err.textContent = "Checking with GitHub...";
-  const cand = { owner: $("#siOwner").value.trim(), repo: $("#siRepo").value.trim(), token: $("#siToken").value.trim() };
+
+async function signInWith(cand, rememberPass){
+  const err = $("#siErr");
+  err.textContent = "Checking with GitHub...";
   try {
     const me = await gh("/user", {}, cand);
     const repo = await gh("/repos/" + cand.owner + "/" + cand.repo, {}, cand);
     if (!repo.permissions || !repo.permissions.push) throw new Error("This token can't write to " + cand.owner + "/" + cand.repo + ". Give it Contents: read and write on that repository.");
     S = { ...cand, branch: repo.default_branch, login: me.login };
     session.set(S);
+    if (rememberPass) { try { await vault.save(cand, rememberPass); } catch { toast("Signed in, but could not save on this device."); } }
     dlg.close(); setSignedIn(true); toast("Signed in as " + me.login);
     location.hash = "admin";
   } catch (ex) {
     err.textContent = ex.status === 401 ? "GitHub rejected that token. Check it and try again." : ex.message;
-  } finally { go.disabled = false; }
+  }
+}
+$("#signInForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const go = $("#siGo"), err = $("#siErr");
+  const remember = $("#siRemember").checked, pass = $("#siNewPass").value;
+  if (remember && pass.length < 6) { err.textContent = "Choose a passphrase of at least 6 characters, or untick the save box."; return; }
+  go.disabled = true;
+  await signInWith({ owner: $("#siOwner").value.trim(), repo: $("#siRepo").value.trim(), token: $("#siToken").value.trim() }, remember ? pass : "");
+  go.disabled = false;
 });
+$("#siUnlock").addEventListener("click", async () => {
+  const btn = $("#siUnlock"), err = $("#siErr"), pass = $("#siPass").value;
+  if (!pass) { err.textContent = "Enter your passphrase."; return; }
+  btn.disabled = true;
+  let cand = null;
+  try { cand = await vault.open(pass); } catch { err.textContent = "That passphrase didn't unlock it."; }
+  if (cand) await signInWith(cand, "");
+  btn.disabled = false;
+});
+$("#siForget").addEventListener("click", () => { vault.clear(); syncVaultUi(); $("#siErr").textContent = "Saved sign-in removed from this device."; });
 $("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); endEdit(); location.hash = "works"; toast("Signed out"); });
 
 /* ---------- upload and edit ---------- */
@@ -940,22 +1016,36 @@ const MODS = [
 let uploadedMods = [];
 let modStats = {};
 const nexusKey = url => { const m = /nexusmods\.com\/([^/]+)\/mods\/(\d+)/.exec(url || ""); return m ? m[1] + "/" + m[2] : ""; };
-const allMods = () => [...byNewest(uploadedMods), ...MODS];
+let nexusMods = [];
+/* Order: mods you added by hand, then everything synced from Nexus (newest first), then the built-in list as a fallback. */
+function allMods(){
+  const seen = new Set(), out = [];
+  const add = m => { const k = nexusKey(m.url); if (k && seen.has(k)) return; if (k) seen.add(k); out.push(m); };
+  byNewest(uploadedMods).forEach(add);
+  nexusMods.forEach(n => {
+    const h = MODS.find(x => nexusKey(x.url) === n.key);
+    add({ title: n.title, by: (h && h.by) || (n.author ? "By " + n.author : ""), desc: n.desc || (h && h.desc) || "", url: n.url, image: n.image,
+      downloads: n.downloads, endorsements: n.endorsements, version: n.version, updated: n.updated });
+  });
+  MODS.forEach(add);
+  return out;
+}
 function renderMods(){
   $("#modGrid").innerHTML = allMods().map((m, i) => {
     const own = uploadedMods.includes(m);
     const open = safeUrl(m.url) ? `<a class="btn small second" href="${esc(m.url)}" target="_blank" rel="noopener">${/nexusmods\.com/.test(m.url) ? "View on Nexus Mods" : "Open"}</a>` : "";
     const del = S && own ? `<button class="linkbtn" type="button" data-editmod="${esc(m.id)}">Edit</button><button class="linkbtn danger" type="button" data-delmod="${esc(m.id)}">Delete</button>` : "";
-    const st = modStats[nexusKey(m.url)];
-    const nums = st ? `<p class="stats">${Number(st.downloads).toLocaleString()} downloads, ${Number(st.endorsements).toLocaleString()} endorsements</p>` : "";
-    const thumb = m.image ? `<div class="thumb"><img src="${esc(m.image)}" alt="" loading="lazy"></div>` : "";
+    const st = m.downloads != null ? m : modStats[nexusKey(m.url)];
+    const upd = m.updated ? ", updated " + new Date(m.updated).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
+    const nums = st ? `<p class="stats">${Number(st.downloads).toLocaleString()} downloads, ${Number(st.endorsements).toLocaleString()} endorsements${m.version ? ", v" + esc(m.version) : ""}${upd}</p>` : "";
+    const thumb = m.image ? `<div class="thumb"><img src="${esc(m.image)}" alt="" loading="lazy" onerror="this.parentNode.remove()"></div>` : "";
     return `<li class="card modcard">${thumb}<div class="body">${m.by ? `<p class="meta">${esc(m.by)}</p>` : ""}<h3>${esc(m.title)}</h3>${m.desc ? `<p class="desc">${esc(m.desc)}</p>` : ""}${nums}<p class="acts">${open}<button class="btn small" type="button" data-addition="${i}">Add an addition to this mod</button>${del}</p></div></li>`;
   }).join("");
 }
 async function loadModStats(){
   try {
-    const r = await fetch("mod-stats.json?" + Date.now());
-    if (r.ok) { modStats = (await r.json()).stats || {}; renderMods(); }
+    const r = await fetch("nexus-mods.json?" + Date.now());
+    if (r.ok) { nexusMods = (await r.json()).mods || []; renderMods(); }
   } catch {}
 }
 async function loadMods(){
@@ -988,6 +1078,35 @@ $("#modGrid").addEventListener("click", async e => {
   location.hash = "orders";
   setTimeout(() => { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }, 80);
 });
+
+/* ---------- birthday: November 26 (add ?birthday=1 to the address to preview, ?birthday=0 to hide) ---------- */
+(function birthday(){
+  const q = new URLSearchParams(location.search).get("birthday"), d = new Date();
+  if (!(q === "1" || (q !== "0" && d.getMonth() === 10 && d.getDate() === 26))) return;
+  document.body.classList.add("bday-on");
+  $("#bday").hidden = false;
+  document.title = "Happy Birthday Clipover!";
+  const cv = $("#confetti"), cx = cv.getContext("2d"), colors = ["#2447c5", "#f6efb4", "#22252b", "#e8505b", "#3bb273", "#f5a623"];
+  let parts = [], raf = 0;
+  const size = () => { cv.width = innerWidth; cv.height = innerHeight; };
+  size(); addEventListener("resize", size);
+  function tick(){
+    cx.clearRect(0, 0, cv.width, cv.height);
+    parts = parts.filter(p => p.y < cv.height + 30);
+    for (const p of parts) {
+      p.x += p.vx + Math.sin(p.y / 30); p.y += p.vy; p.r += p.vr;
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cx.restore();
+    }
+    raf = parts.length ? requestAnimationFrame(tick) : 0;
+  }
+  function burst(n){
+    for (let i = 0; i < n; i++) parts.push({ x: Math.random() * cv.width, y: -20 - Math.random() * cv.height * .4, vx: (Math.random() - .5) * 3, vy: 2 + Math.random() * 3,
+      r: Math.random() * 6.28, vr: (Math.random() - .5) * .3, w: 6 + Math.random() * 6, h: 8 + Math.random() * 8, c: colors[i % colors.length] });
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+  $("#bdayConfetti").addEventListener("click", () => burst(140));
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) burst(160);
+})();
 
 /* ---------- tabs: one page at a time, chosen by the link (#works, #orders ...) ---------- */
 const TABS = ["works", "mods", "games", "updates", "orders", "community", "support", "admin"];
