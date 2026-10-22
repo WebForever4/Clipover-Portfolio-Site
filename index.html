@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem("clipover-theme")||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light")}catch(e){}</script>
+<script src="config.js"></script>
 <style>
   :root[data-theme="dark"]{color-scheme:dark;--paper:#14161a;--ink:#e9ebef;--muted:#a3aab7;--line:#353a45;--blue:#8aa6ff;--pad:#2c2a16}
   :root{
@@ -333,6 +334,7 @@
       <h2>Settings</h2>
       <p class="sub">Only you can see this. Changes are saved to your repository and the live site updates in a minute or two.</p>
       <p class="err" id="setMsg" role="status"></p>
+      <p class="note" id="setSrc"></p>
       <div class="sets">
         <details open><summary>Mods</summary>
           <p class="note">Nexus mods sync on their own. Remove one to take it off the site (it stays on Nexus), or edit how it appears. Mods you uploaded can be edited or deleted.</p>
@@ -504,6 +506,13 @@
         <button class="btn" type="button" id="siUnlock">Unlock</button>
         <button class="linkbtn danger" type="button" id="siForget">Forget saved sign-in</button>
       </div>
+    </div>
+    <div class="vault" id="dbBox" hidden>
+      <p class="note"><b>Owner login</b> (email and password). This is what Settings, events and wishes use.</p>
+      <label>Email <input id="siEmail" type="email" autocomplete="username"></label>
+      <label>Password <input id="siPw" type="password" autocomplete="current-password"></label>
+      <label class="check"><input type="checkbox" id="siKeep"> Keep me signed in on this device</label>
+      <div><button class="btn" type="button" id="siDbGo">Log in</button></div>
     </div>
     <p class="note">Or sign in with a GitHub access token for your repository. It stays in this browser tab and is only sent to GitHub.</p>
     <label>Repository owner
@@ -710,6 +719,7 @@ async function putFile(path, b64, message){
   return gh(cp(path), { method: "PUT", body: JSON.stringify({ message, content: b64, branch: S.branch, ...(sha ? { sha } : {}) }) });
 }
 async function readList(file){
+  if (useDb(file)) return { data: (await dbRead(file)) || {}, sha: null };
   try {
     const f = await gh(cp(file) + "?ref=" + encodeURIComponent(S.branch) + "&_=" + Date.now());
     return { data: JSON.parse(textFromB64(f.content)), sha: f.sha };
@@ -723,6 +733,7 @@ async function updateList(file, key, mutate, message){
     const { data, sha } = await readList(file);
     const next = mutate(Array.isArray(data[key]) ? data[key] : []);
     try {
+      if (useDb(file)) { await dbWrite(file, { ...data, [key]: next }); return next; }
       await gh(cp(file), { method: "PUT", body: JSON.stringify({ message, content: b64FromText(JSON.stringify({ ...data, [key]: next }, null, 2) + "\n"), branch: S.branch, ...(sha ? { sha } : {}) }) });
       return next;
     } catch (e) {
@@ -739,6 +750,7 @@ async function updateObj(file, mutate, message){
     const { data, sha } = await readList(file);
     const next = mutate(data && typeof data === "object" ? data : {});
     try {
+      if (useDb(file)) { await dbWrite(file, next); return next; }
       await gh(cp(file), { method: "PUT", body: JSON.stringify({ message, content: b64FromText(JSON.stringify(next, null, 2) + "\n"), branch: S.branch, ...(sha ? { sha } : {}) }) });
       return next;
     } catch (e) { lastErr = e; if (e.status !== 409 && e.status !== 422) throw e; await new Promise(r => setTimeout(r, 1200 * (i + 1))); }
@@ -749,13 +761,51 @@ const updateWorks = (mutate, message) => updateList("works.json", "works", mutat
 const updateMods = (mutate, message) => updateList("mods.json", "mods", mutate, message);
 const byNewest = list => list.slice().sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
+/* ---------- database (Supabase): instant, checked saves for settings, events and wishes. Falls back to GitHub files if config.js is empty. ---------- */
+const CFG = window.CLIPOVER || {};
+const DB_ON = !!(CFG.supabaseUrl && CFG.supabaseKey);
+const DB_URL = (CFG.supabaseUrl || "").replace(/\/$/, "");
+const DB_KEYS = { "settings.json": "settings", "events.json": "events" };
+const useDb = f => DB_ON && f in DB_KEYS;
+const dbSession = {
+  get(){ try { return JSON.parse(sessionStorage.getItem("clipover-db") || localStorage.getItem("clipover-db") || "null"); } catch { return null; } },
+  set(v){ try { sessionStorage.setItem("clipover-db", JSON.stringify(v)); if (v.keep) localStorage.setItem("clipover-db", JSON.stringify(v)); } catch {} },
+  clear(){ try { sessionStorage.removeItem("clipover-db"); localStorage.removeItem("clipover-db"); } catch {} }
+};
+let DBS = DB_ON ? dbSession.get() : null;
+function dbSave(j, keep){ DBS = { access_token: j.access_token, refresh_token: j.refresh_token, email: (j.user && j.user.email) || (DBS && DBS.email) || "", keep: keep != null ? keep : !!(DBS && DBS.keep) }; dbSession.set(DBS); }
+async function dbRefresh(){
+  try {
+    const r = await fetch(DB_URL + "/auth/v1/token?grant_type=refresh_token", { method: "POST", headers: { apikey: CFG.supabaseKey, "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: DBS.refresh_token }) });
+    if (!r.ok) return false; dbSave(await r.json()); return true;
+  } catch { return false; }
+}
+async function sbFetch(path, opts = {}, authed = true){
+  if (authed && !DBS && (opts.method || "GET") !== "GET") { const e = new Error("You're not logged in with your owner email"); e.status = 401; throw e; }
+  const go = t => fetch(DB_URL + path, { cache: "no-store", ...opts, headers: { apikey: CFG.supabaseKey, Authorization: "Bearer " + t, "Content-Type": "application/json", ...(opts.headers || {}) } });
+  let r = await go(authed && DBS ? DBS.access_token : CFG.supabaseKey);
+  if (r.status === 401 && authed && DBS && DBS.refresh_token && await dbRefresh()) r = await go(DBS.access_token);
+  const text = await r.text();
+  let body = null; try { body = text ? JSON.parse(text) : null; } catch {}
+  if (!r.ok) { const e = new Error((body && (body.message || body.msg || body.error_description)) || "Database error " + r.status); e.status = r.status; throw e; }
+  return body;
+}
+async function dbRead(file){ const rows = await sbFetch("/rest/v1/site?key=eq." + DB_KEYS[file] + "&select=value", {}, false); return rows && rows[0] ? rows[0].value : null; }
+async function dbWrite(file, value){
+  await sbFetch("/rest/v1/site?on_conflict=key", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ key: DB_KEYS[file], value, updated_at: new Date().toISOString() }) });
+}
+if (DB_ON) {
+  $("#wishes .sub").textContent = "Leave me a birthday message. If it passes the word filter it shows up right away.";
+  $("#wishCfgForm").elements.cHook.closest("label").hidden = true; $("#wishSync").hidden = true;
+}
+
 /* ---------- sign in ---------- */
 const dlg = $("#signInDialog");
 function setSignedIn(on){
   $("#navAdmin").hidden = !on;
-  $("#navSettings").hidden = !on;
-  $("#setWho").textContent = on ? S.login + " (" + S.owner + "/" + S.repo + ")" : "";
-  $("#signInBtn").textContent = on ? "Signed in" : "Sign in";
+  $("#navSettings").hidden = !(on || DBS);
+  $("#setWho").textContent = [on ? "GitHub: " + S.login : "", DBS ? "Email: " + DBS.email : ""].filter(Boolean).join(", ") || "nobody";
+  $("#signInBtn").textContent = (on || DBS) ? "Signed in" : "Sign in";
   if (on) $("#whoami").textContent = S.login;
   renderWorks();
   renderMods();
@@ -787,10 +837,11 @@ const syncVaultUi = () => { $("#vaultBox").hidden = !vault.has(); };
 $("#siRemember").addEventListener("change", e => { $("#siNewPassWrap").hidden = !e.target.checked; });
 $("#signInBtn").addEventListener("click", () => {
   if (S) { location.hash = "admin"; return; }
+  if (DBS) { location.hash = "settings"; return; }
   const g = guessRepo();
   $("#siOwner").value = g.owner; $("#siRepo").value = g.repo; $("#siToken").value = ""; $("#siErr").textContent = "";
   $("#siPass").value = ""; $("#siNewPass").value = ""; $("#siRemember").checked = false; $("#siNewPassWrap").hidden = true;
-  syncVaultUi();
+  syncVaultUi(); $("#dbBox").hidden = !DB_ON;
   dlg.showModal();
 });
 $("#siCancel").addEventListener("click", () => dlg.close());
@@ -829,8 +880,18 @@ $("#siUnlock").addEventListener("click", async () => {
   if (cand) await signInWith(cand, "");
   btn.disabled = false;
 });
+$("#siDbGo").addEventListener("click", async () => {
+  const err = $("#siErr"), btn = $("#siDbGo"), email = $("#siEmail").value.trim(), pw = $("#siPw").value;
+  if (!email || !pw) { err.textContent = "Enter your email and password."; return; }
+  btn.disabled = true; err.textContent = "Logging in...";
+  try {
+    const r = await fetch(DB_URL + "/auth/v1/token?grant_type=password", { method: "POST", headers: { apikey: CFG.supabaseKey, "Content-Type": "application/json" }, body: JSON.stringify({ email, password: pw }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error_description || j.msg || "Log in failed");
+    dbSave(j, $("#siKeep").checked); dlg.close(); setSignedIn(!!S); loadSettings(); loadWishes(); toast("Logged in as " + DBS.email); location.hash = "settings";
+  } catch (ex) { err.textContent = ex.message; } finally { btn.disabled = false; }
+});
 $("#siForget").addEventListener("click", () => { vault.clear(); syncVaultUi(); $("#siErr").textContent = "Saved sign-in removed from this device."; });
-$("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); setSignedIn(false); endEdit(); location.hash = "works"; toast("Signed out"); });
+$("#signOutBtn").addEventListener("click", () => { S = null; session.clear(); DBS = null; dbSession.clear(); setSignedIn(false); endEdit(); location.hash = "works"; toast("Signed out"); });
 
 /* The Sign in button is hidden from visitors. It shows on your own devices after you open the site with ?admin on the end,
    or click the logo 5 times fast, or once you have signed in or saved a sign-in there. */
@@ -841,7 +902,7 @@ const ownerFlag = {
 };
 function showSignIn(){ ownerFlag.set(); $("#signInBtn").hidden = false; }
 if (new URLSearchParams(location.search).has("admin")) ownerFlag.set();
-if (S || ownerFlag.get() || vault.has()) $("#signInBtn").hidden = false;
+if (S || DBS || ownerFlag.get() || vault.has()) $("#signInBtn").hidden = false;
 let logoClicks = 0, logoTimer;
 $(".brand").addEventListener("click", () => {
   logoClicks++; clearTimeout(logoTimer); logoTimer = setTimeout(() => { logoClicks = 0; }, 1500);
@@ -1246,6 +1307,7 @@ $("#modGrid").addEventListener("click", modAction);
 const DEFAULTS = { wishes: { on: false, webhook: "", blockLinks: true, words: [] }, removedWishes: [], birthday: { enabled: true, month: 11, day: 26, message: "It's My Birthday Today!", confetti: true }, banner: { on: false, text: "", link: "" }, orders: { open: true, note: "" }, hiddenMods: [], modEdits: {} };
 const mergeCfg = d => { d = d || {}; return { ...d, birthday: { ...DEFAULTS.birthday, ...(d.birthday || {}) }, banner: { ...DEFAULTS.banner, ...(d.banner || {}) }, orders: { ...DEFAULTS.orders, ...(d.orders || {}) }, wishes: { ...DEFAULTS.wishes, ...(d.wishes || {}) }, removedWishes: d.removedWishes || [], hiddenMods: d.hiddenMods || [], modEdits: d.modEdits || {} }; };
 let cfg = mergeCfg({});
+const HOOK_RE = /^https:\/\/([a-z]+\.)?(discord|discordapp)\.com\/api\/(v\d+\/)?webhooks\/\d+\/[\w-]+/;
 const ymd = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 const fmtDay = ds => new Date(ds + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 function nextBirthday(){
@@ -1293,21 +1355,27 @@ function applySettings(loud){
 }
 $("#orderForm").addEventListener("submit", e => { if (!cfg.orders.open) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
 async function loadSettings(){
-  let d = null;
-  if (S) { try { d = (await readList("settings.json")).data; } catch {} }
-  if (!d) { try { const r = await fetch("settings.json?" + Date.now()); if (r.ok) d = await r.json(); } catch {} }
+  let d = null, src = "", why = "";
+  if (DB_ON) {
+    try { d = (await dbRead("settings.json")) || {}; src = "the database (live)"; } catch (ex) { why = ex.message; }
+  } else if (S) {
+    try { d = (await readList("settings.json")).data; src = "GitHub (live)"; try { localStorage.setItem("clipover-cfg", JSON.stringify(d)); } catch {} }
+    catch (ex) { why = ex.message; try { d = JSON.parse(localStorage.getItem("clipover-cfg") || "null"); if (d) src = "this device's last saved copy (could not read GitHub: " + why + ")"; } catch {} }
+  }
+  if (!d) { try { const r = await fetch("settings.json?" + Date.now()); if (r.ok) { d = await r.json(); src = "your published site (can be a few minutes behind)" + (why ? "; could not read GitHub: " + why : ""); } } catch {} }
+  $("#setSrc").textContent = d ? "Settings loaded from " + src + "." : "No saved settings found yet" + (why ? " (could not read GitHub: " + why + ")" : "") + ".";
   if (d) cfg = mergeCfg(d);
   applySettings(true);
 }
 function fail(ex){
   const m = $("#setMsg"); m.style.color = "#b3123f";
-  const hint = [401, 403, 404].includes(ex.status) ? " Your token most likely can't write to this repository. Make a fine-grained token with Contents: Read and write and Actions: Read and write for this repo, then sign out and sign in with it." : "";
+  const hint = [401, 403, 404].includes(ex.status) ? (DB_ON ? " Log in with your owner email (Sign in, Owner login). It must match the email in supabase-setup.sql." : " Your token most likely can't write to this repository. Make a fine-grained token with Contents: Read and write and Actions: Read and write for this repo, then sign out and sign in with it.") : "";
   m.textContent = "NOT SAVED: " + ex.message + "." + hint; toast("Not saved. Read the red message at the top of Settings.");
   m.scrollIntoView({ block: "center", behavior: "smooth" });
 }
 async function saveCfg(fn, msg){
   const m = $("#setMsg"); m.style.color = ""; m.textContent = "Saving...";
-  try { cfg = mergeCfg(await updateObj("settings.json", cur => fn(mergeCfg(cur)), msg)); applySettings(false); m.textContent = "Saved to your repository. Visitors see it in a minute or two."; toast("Saved"); return true; }
+  try { cfg = mergeCfg(await updateObj("settings.json", cur => fn(mergeCfg(cur)), msg)); try { localStorage.setItem("clipover-cfg", JSON.stringify(cfg)); } catch {} $("#setSrc").textContent = "Settings loaded from GitHub (live)."; applySettings(false); m.textContent = DB_ON ? "Saved. Visitors see it straight away." : "Saved to your repository. Visitors see it in a minute or two."; toast("Saved"); return true; }
   catch (ex) { fail(ex); return false; }
 }
 function fillForms(){
@@ -1360,7 +1428,10 @@ $("#modCancel").addEventListener("click", () => $("#modEditDialog").close());
 /* ---------- events (events.json) ---------- */
 let events = [], hasEvents = false, editingEvent = null;
 async function loadEvents(){
-  try { const r = await fetch("events.json?" + Date.now()); if (r.ok) events = (await r.json()).events || []; } catch {}
+  try {
+    if (DB_ON) { const v = await dbRead("events.json"); events = (v && v.events) || []; }
+    else { const r = await fetch("events.json?" + Date.now()); if (r.ok) events = (await r.json()).events || []; }
+  } catch {}
   renderEvents();
 }
 function renderEvents(){
@@ -1379,7 +1450,7 @@ $("#eventCancel").addEventListener("click", endEventEdit);
 $("#eventForm").addEventListener("submit", async e => {
   e.preventDefault(); const f = e.target, m = $("#setMsg"); m.style.color = ""; m.textContent = "Saving...";
   const entry = { id: editingEvent || Date.now().toString(36), title: f.elements.eTitle.value.trim(), date: f.elements.eDate.value, time: f.elements.eTime.value.trim(), link: safeUrl(f.elements.eLink.value.trim()), desc: f.elements.eDesc.value.trim() };
-  try { events = await updateList("events.json", "events", l => [...l.filter(x => x.id !== entry.id), entry], "Event: " + entry.title); endEventEdit(); renderEvents(); m.textContent = "Event saved. The live site updates in a minute or two."; }
+  try { events = await updateList("events.json", "events", l => [...l.filter(x => x.id !== entry.id), entry], "Event: " + entry.title); endEventEdit(); renderEvents(); m.textContent = DB_ON ? "Event saved. Visitors see it straight away." : "Event saved. The live site updates in a minute or two."; }
   catch (ex) { fail(ex); }
 });
 $("#eventsAdmin").addEventListener("click", async e => {
@@ -1390,7 +1461,7 @@ $("#eventsAdmin").addEventListener("click", async e => {
 });
 
 /* ---------- birthday wishes, with a word filter ---------- */
-const norm = t => String(t).toLowerCase().replace(/[0@]/g, "o").replace(/[1!|]/g, "i").replace(/3/g, "e").replace(/4/g, "a").replace(/[5$]/g, "s").replace(/7/g, "t");
+const norm = t => String(t).toLowerCase().replace(/0/g, "o").replace(/[@4]/g, "a").replace(/[1!|]/g, "i").replace(/3/g, "e").replace(/[5$]/g, "s").replace(/7/g, "t");
 function blocked(text, o = cfg.wishes){
   if (o.blockLinks !== false && /(https?:\/\/|www\.|\.(com|net|org|gg|io|ru|xyz)\b|discord\.gg)/i.test(text)) return true;
   const n = norm(text), words = n.split(/[^a-z]+/).filter(Boolean), squashed = n.replace(/[^a-z]/g, "").replace(/(.)\1+/g, "$1");
@@ -1402,14 +1473,17 @@ function blocked(text, o = cfg.wishes){
 }
 let wishes = [];
 async function loadWishes(){
-  try { const r = await fetch("wishes.json?" + Date.now()); if (r.ok) wishes = (await r.json()).wishes || []; } catch {}
+  try {
+    if (DB_ON) { const rows = await sbFetch("/rest/v1/wishes?select=id,name,text,created_at,approved&order=created_at.desc&limit=200", {}, !!DBS); wishes = rows.map(r => ({ id: String(r.id), name: r.name, text: r.text, date: r.created_at, approved: r.approved })); }
+    else { const r = await fetch("wishes.json?" + Date.now()); if (r.ok) wishes = (await r.json()).wishes || []; }
+  } catch {}
   renderWishes();
 }
 function renderWishes(){
   $("#navWishes").hidden = !cfg.wishes.on;
-  const ok = wishes.filter(w => !cfg.removedWishes.includes(w.id) && !blocked(w.name + " " + w.text));
+  const ok = wishes.filter(w => w.approved !== false && !cfg.removedWishes.includes(w.id) && !blocked(w.name + " " + w.text));
   $("#wishList").innerHTML = ok.map(w => `<li><time>${esc(new Date(w.date).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }))}</time><div class="text"><b>${esc(w.name)}</b><br>${esc(w.text)}</div></li>`).join("") || '<li class="empty">No wishes yet. Be the first.</li>';
-  $("#wishesAdmin").innerHTML = wishes.map(w => { const gone = cfg.removedWishes.includes(w.id), bad = blocked(w.name + " " + w.text);
+  $("#wishesAdmin").innerHTML = wishes.map(w => { if (DB_ON) { const on = w.approved !== false; return `<li><span class="grow"><b>${esc(w.name)}</b>: ${esc(w.text)}<br><span class="note">${on ? "Showing" : "Held back by the filter or hidden by you"}</span></span><button class="linkbtn" type="button" data-wset="${esc(w.id)}" data-on="${on ? 0 : 1}">${on ? "Hide" : "Approve"}</button><button class="linkbtn danger" type="button" data-wdel="${esc(w.id)}">Delete</button></li>`; } const gone = cfg.removedWishes.includes(w.id), bad = blocked(w.name + " " + w.text);
     return `<li><span class="grow"><b>${esc(w.name)}</b>: ${esc(w.text)}<br><span class="note">${gone ? "Removed by you" : bad ? "Hidden by the word filter" : "Showing"}</span></span><button class="linkbtn${gone ? "" : " danger"}" type="button" data-wish="${esc(w.id)}">${gone ? "Restore" : "Remove"}</button></li>`; }).join("") || '<li class="note">No wishes collected yet.</li>';
 }
 function fillWishForm(){
@@ -1419,10 +1493,13 @@ const wishOpts = () => { const f = $("#wishCfgForm"); return { blockLinks: f.ele
 $("#wishCfgForm").elements.cTest.addEventListener("input", e => { const v = e.target.value; $("#wishTestOut").textContent = v ? (blocked(v, wishOpts()) ? "Would be blocked." : "Would be allowed.") : ""; });
 $("#wishCfgForm").addEventListener("submit", e => {
   e.preventDefault(); const f = e.target, hook = f.elements.cHook.value.trim();
-  if (hook && !/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(hook)) { $("#setMsg").style.color = "#b3123f"; $("#setMsg").textContent = "That doesn't look like a Discord webhook URL."; return; }
+  if (hook && !HOOK_RE.test(hook)) { fail({ message: "That doesn't look like a Discord webhook URL. It should look like https://discord.com/api/webhooks/123456/abcdef" }); return; }
   saveCfg(c => ({ ...c, wishes: { on: f.elements.cOn.checked, webhook: hook, blockLinks: f.elements.cLinks.checked, words: [...new Set(f.elements.cWords.value.split("\n").map(x => x.trim()).filter(Boolean))].slice(0, 500) } }), "Update wishes settings");
 });
 $("#wishesAdmin").addEventListener("click", e => {
+  const st = e.target.closest("[data-wset]"), dl = e.target.closest("[data-wdel]");
+  if (st) { sbFetch("/rest/v1/wishes?id=eq." + st.dataset.wset, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ approved: st.dataset.on === "1" }) }).then(loadWishes).catch(fail); return; }
+  if (dl) { if (confirm("Delete this wish for good?")) sbFetch("/rest/v1/wishes?id=eq." + dl.dataset.wdel, { method: "DELETE" }).then(loadWishes).catch(fail); return; }
   const b = e.target.closest("[data-wish]"); if (!b) return; const id = b.dataset.wish;
   saveCfg(c => { const set = new Set(c.removedWishes); set.has(id) ? set.delete(id) : set.add(id); return { ...c, removedWishes: [...set] }; }, "Toggle wish");
 });
@@ -1433,17 +1510,18 @@ $("#wishForm").addEventListener("submit", async e => {
   const name = f.elements.wName.value.trim().replace(/[:\n]/g, " ").slice(0, 30), text = f.elements.wText.value.trim().replace(/\n+/g, " ");
   if (!text) return;
   if (blocked(name + " " + text)) { m.style.color = "#a8222f"; m.textContent = "Sorry, that message can't be posted. Try rewording it."; return; }
-  if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(cfg.wishes.webhook)) { m.textContent = "Wishes aren't taking messages right now."; return; }
+  if (!DB_ON && !HOOK_RE.test(cfg.wishes.webhook)) { m.textContent = "Wishes aren't taking messages right now."; return; }
   try {
-    const r = await fetch(cfg.wishes.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: "Birthday wish", content: (name || "A friend") + ": " + text, allowed_mentions: { parse: [] } }) });
-    if (!r.ok) throw new Error("bad");
+    if (DB_ON) await sbFetch("/rest/v1/wishes", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ name: name || "A friend", text }) }, false);
+    else { const r = await fetch(cfg.wishes.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: "Birthday wish", content: (name || "A friend") + ": " + text, allowed_mentions: { parse: [] } }) }); if (!r.ok) throw new Error("bad"); }
     try { localStorage.setItem("clipover-wish-t", String(Date.now())); } catch {}
-    f.reset(); m.textContent = "Thank you! Your wish will show up here shortly.";
+    f.reset(); m.textContent = DB_ON ? "Thank you! If it passes the filter it shows up right away." : "Thank you! Your wish will show up here shortly."; if (DB_ON) loadWishes();
   } catch { m.style.color = "#a8222f"; m.textContent = "Couldn't send that. Please try again later."; }
 });
 
 /* ---------- Nexus sync button, dark mode, Discord live status ---------- */
 async function runWorkflow(file, what){
+  if (!S) { toast("Sign in with your GitHub token to start this."); return; }
   try { await gh("/repos/" + S.owner + "/" + S.repo + "/actions/workflows/" + file + "/dispatches", { method: "POST", body: JSON.stringify({ ref: S.branch }) }); toast(what + " started. Give it a minute or two."); }
   catch (ex) { const m = $("#setMsg"); m.style.color = "#b3123f"; m.textContent = "Couldn't start it (" + ex.message + "). The token needs Actions: read and write, and the workflow file must be named " + file + "."; }
 }
@@ -1471,7 +1549,7 @@ $("#setForget").addEventListener("click", () => { vault.clear(); toast("Saved si
 $("#setHide").addEventListener("click", () => { vault.clear(); ownerFlag.clear(); $("#signOutBtn").click(); $("#signInBtn").hidden = true; });
 $("#setBackup").addEventListener("click", async () => {
   try {
-    const out = {}; for (const f of ["works.json", "mods.json", "events.json", "settings.json", "wishes.json"]) out[f] = (await readList(f)).data;
+    const out = {}; for (const f of ["works.json", "mods.json", "events.json", "settings.json", "wishes.json"]) { try { out[f] = (await readList(f)).data; } catch { out[f] = "(needs GitHub sign-in)"; } } if (DB_ON) out["wishes (database)"] = wishes;
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 2)], { type: "application/json" })); a.download = "clipover-backup-" + ymd(new Date()) + ".json"; a.click();
   } catch (ex) { toast(ex.message); }
 });
@@ -1479,7 +1557,7 @@ $("#setBackup").addEventListener("click", async () => {
 /* ---------- tabs: one page at a time, chosen by the link (#works, #orders ...) ---------- */
 const TABS = ["works", "mods", "games", "updates", "events", "wishes", "orders", "community", "support", "admin", "settings"];
 let hasUpdates = false;
-const tabAllowed = id => TABS.includes(id) && (id !== "updates" || hasUpdates) && (id !== "admin" || !!S) && (id !== "settings" || !!S) && (id !== "events" || hasEvents) && (id !== "wishes" || cfg.wishes.on);
+const tabAllowed = id => TABS.includes(id) && (id !== "updates" || hasUpdates) && (id !== "admin" || !!S) && (id !== "settings" || !!(S || DBS)) && (id !== "events" || hasEvents) && (id !== "wishes" || cfg.wishes.on);
 function showTab(scroll){
   let id = location.hash.slice(1);
   if (!tabAllowed(id)) id = "works";
@@ -1511,7 +1589,7 @@ loadLive();
 setInterval(loadLive, 300000);
 loadUpdates();
 syncUploadForm();
-if (S) setSignedIn(true); else showTab(false);
+if (S || DBS) setSignedIn(!!S); else showTab(false);
 
 
 
